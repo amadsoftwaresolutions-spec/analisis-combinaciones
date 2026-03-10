@@ -9,7 +9,7 @@ import tkinter.ttk as ttk
 from tkinter import messagebox
 import customtkinter as ctk
 
-from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_TEXT, CLR_TEXT_DIM,
+from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_HOVER, CLR_TEXT, CLR_TEXT_DIM,
                     CLR_PRIME, CLR_COMPOSITE, CLR_CONSECUTIVE, CLR_REPEATED,
                     HISTORY_DISPLAY)
 from utils.math_utils import is_prime
@@ -33,13 +33,13 @@ class TabHistory:
 
         ctk.CTkLabel(
             header,
-            text=f"📋  Últimos {HISTORY_DISPLAY} Sorteos",
+            text=f"Historial — Últimos {HISTORY_DISPLAY} Sorteos",
             font=ctk.CTkFont(size=14, weight="bold"),
             text_color=CLR_TEXT,
         ).pack(side="left", padx=16, pady=12)
 
-        ctk.CTkButton(header, text="↻ Actualizar",
-                      fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+        ctk.CTkButton(header, text="↻  Actualizar",
+                      fg_color=CLR_FRAME2, hover_color=CLR_HOVER,
                       width=110, height=32,
                       command=self.refresh).pack(side="right", padx=12)
 
@@ -55,20 +55,10 @@ class TabHistory:
         body = ctk.CTkFrame(self.parent, fg_color=CLR_FRAME, corner_radius=10)
         body.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        tv_style = ttk.Style()
-        tv_style.theme_use("clam")
-        tv_style.configure("LuminaDark.Treeview",
-            background=CLR_CARD, foreground="#e2e8f0",
-            fieldbackground=CLR_CARD, rowheight=28,
-            font=("Segoe UI", 9))
-        tv_style.configure("LuminaDark.Treeview.Heading",
-            background=CLR_CARD2, foreground="#818cf8",
-            font=("Segoe UI", 8, "bold"), relief="flat")
-        tv_style.map("LuminaDark.Treeview",
-            background=[("selected", "#6366f1")],
-            foreground=[("selected", "#ffffff")])
+        from gui.theme import apply_treeview_style
+        apply_treeview_style("Nova.Treeview", row_height=28)
 
-        self._tree = ttk.Treeview(body, style="LuminaDark.Treeview",
+        self._tree = ttk.Treeview(body, style="Nova.Treeview",
             selectmode="browse", show="headings")
         _scy = tk.Scrollbar(body, orient="vertical", command=self._tree.yview,
                             bg=CLR_FRAME2)

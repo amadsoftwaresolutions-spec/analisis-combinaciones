@@ -7,8 +7,8 @@ import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
 
-from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_ACCENT, CLR_TEXT,
-                    CLR_TEXT_DIM, CLR_BTN_PRIMARY, CLR_BTN_DANGER,
+from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_ACCENT, CLR_BORDER,
+                    CLR_TEXT, CLR_TEXT_DIM, CLR_BTN_PRIMARY, CLR_BTN_DANGER,
                     MIN_POSITIONS, MAX_POSITIONS, MIN_NUMBER_VALUE,
                     MAX_NUMBER_VALUE, FONT_HEADER)
 
@@ -16,7 +16,7 @@ from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_ACCE
 def _lbl(parent, text, **kw):
     return ctk.CTkLabel(parent, text=text,
                          font=ctk.CTkFont(family="Segoe UI", size=12),
-                         text_color=kw.pop("text_color", "#ccd6f6"), **kw)
+                         text_color=kw.pop("text_color", CLR_TEXT), **kw)
 
 
 class TabConfig:
@@ -49,13 +49,13 @@ class TabConfig:
 
         btn_row = ctk.CTkFrame(left, fg_color="transparent")
         btn_row.pack(fill="x", padx=10, pady=(0, 12))
-        ctk.CTkButton(btn_row, text="＋  Nueva Lotería",
-                      fg_color=CLR_ACCENT, hover_color="#4f46e5",
+        ctk.CTkButton(btn_row, text="+  Nueva Lotería",
+                      fg_color=CLR_ACCENT, hover_color="#16a34a",
                       text_color="#ffffff",
                       font=ctk.CTkFont("Segoe UI", 11, "bold"),
                       command=self._new_lottery).pack(side="left", expand=True,
                                                        padx=(0, 4))
-        ctk.CTkButton(btn_row, text="🗑  Eliminar",
+        ctk.CTkButton(btn_row, text="× Eliminar",
                       fg_color="#dc2626", hover_color="#b91c1c",
                       text_color="#ffffff",
                       font=ctk.CTkFont("Segoe UI", 10),
@@ -125,10 +125,10 @@ class TabConfig:
                                 pady=(12, 4))
 
         # Botón guardar
-        ctk.CTkButton(right, text="💾   Guardar Lotería",
+        ctk.CTkButton(right, text="  Guardar Lotería",
                       font=ctk.CTkFont("Segoe UI", 13, "bold"),
-                      fg_color="#6366f1", hover_color="#4f46e5",
-                      text_color="#ffffff",
+                      fg_color=CLR_ACCENT, hover_color="#16a34a",
+                      text_color="#0d0d10",
                       corner_radius=10,
                       command=self._save_lottery,
                       height=42).pack(pady=14, padx=20, fill="x")
@@ -188,7 +188,7 @@ class TabConfig:
             row = ctk.CTkFrame(self._listbox_frame,
                                fg_color=CLR_CARD2 if is_active else CLR_CARD,
                                border_width=2 if is_active else 1,
-                               border_color="#6366f1" if is_active else "#1e2d44",
+                               border_color=CLR_ACCENT if is_active else CLR_BORDER,
                                corner_radius=8)
             row.pack(fill="x", pady=3, padx=2)
             ctk.CTkButton(

@@ -1,9 +1,9 @@
 """
-Configuración global de la aplicación Análisis de Combinaciones - Lotería IA
+Configuración global — Nova Design System
 """
 import os
 
-APP_NAME = "Análisis Combinaciones - Lotería IA"
+APP_NAME = "Lottery Analytics AI"
 APP_VERSION = "1.0.0"
 
 # Ruta de la base de datos
@@ -39,60 +39,64 @@ THIRDS_HOT_FACTOR = 1.35    # Si aparece > esperado * factor → tercio "calient
 HL_CONFIDENCE = 0.60         # 60% en una dirección para dar predicción
 
 # ════════════════════════════════════════════════════════════════════════════
-# LUMINA DARK — Design Token System v2
+# NOVA — Minimalist Dark Design System
+# Accent: Emerald Green — clean, sharp, professional
 # ════════════════════════════════════════════════════════════════════════════
 
-# ── Surface hierarchy ────────────────────────────────────────────────────────
-CLR_BG       = "#070b14"    # Deep space — main window background
-CLR_CARD     = "#0e1420"    # Primary card surface
-CLR_CARD2    = "#141d2e"    # Elevated / secondary card
-CLR_INPUT    = "#1a2438"    # Input field background
-CLR_BORDER   = "#1e2d44"    # Subtle border
-CLR_BORDER2  = "#2a3d57"    # Stronger border / separators
+# ── Surfaces ─────────────────────────────────────────────────────────────────
+CLR_BG       = "#0d0d10"    # True black — main window
+CLR_PANEL    = "#111116"    # Panel surface
+CLR_CARD     = "#161620"    # Card surface
+CLR_CARD2    = "#1c1c28"    # Elevated card
+CLR_INPUT    = "#1a1a24"    # Input background
+CLR_HOVER    = "#222234"    # Hover state
+CLR_BORDER   = "#252538"    # Subtle border
+CLR_BORDER2  = "#333348"    # Strong border / separators
 
-# ── Brand palette ────────────────────────────────────────────────────────────
-CLR_ACCENT   = "#6366f1"    # Indigo 500  — primary action
-CLR_ACCENT2  = "#8b5cf6"    # Violet 500  — secondary
-CLR_ACCENT3  = "#22d3ee"    # Cyan 400    — highlight / link
+# ── Brand palette ─────────────────────────────────────────────────────────────
+CLR_ACCENT   = "#22c55e"    # Emerald 500  — primary action
+CLR_ACCENT2  = "#4ade80"    # Emerald 400  — light variant
+CLR_ACCENT3  = "#86efac"    # Emerald 300  — softest
+CLR_ACCENT_DIM = "#052e16"  # Emerald deep — active nav bg
 
-# ── Semantic ─────────────────────────────────────────────────────────────────
-CLR_SUCCESS  = "#10b981"    # Emerald
-CLR_WARNING  = "#f59e0b"    # Amber
-CLR_DANGER   = "#ef4444"    # Red
-CLR_INFO     = "#38bdf8"    # Sky blue
+# ── Semantic ──────────────────────────────────────────────────────────────────
+CLR_SUCCESS  = "#22c55e"
+CLR_WARNING  = "#f59e0b"
+CLR_DANGER   = "#ef4444"
+CLR_INFO     = "#3b82f6"
 
-# ── Number classification ────────────────────────────────────────────────────
-CLR_PRIME      = "#a5b4fc"  # Soft indigo  → primes (incl. 1)
-CLR_COMPOSITE  = "#fdba74"  # Soft amber   → composites
+# ── Number classification ─────────────────────────────────────────────────────
+CLR_PRIME      = "#a78bfa"  # Violet soft  → primes
+CLR_COMPOSITE  = "#fb923c"  # Orange soft  → composites
 
-# ── History markers ─────────────────────────────────────────────────────────
-CLR_CONSECUTIVE = "#fca5a5" # Soft red     → consecutive within same draw
-CLR_REPEATED    = "#fcd34d" # Golden       → repeated from previous draw
+# ── History markers ──────────────────────────────────────────────────────────
+CLR_CONSECUTIVE = "#f87171" # Soft red     → consecutive
+CLR_REPEATED    = "#fbbf24" # Amber        → repeated from prev draw
 
-# ── Prediction ───────────────────────────────────────────────────────────────
-CLR_HIGHER   = "#4ade80"    # Green        → expected higher
-CLR_LOWER    = "#f87171"    # Soft red     → expected lower
-CLR_NEUTRAL  = "#64748b"    # Slate        → indeterminate
+# ── Prediction ────────────────────────────────────────────────────────────────
+CLR_HIGHER   = "#4ade80"    # Green
+CLR_LOWER    = "#f87171"    # Soft red
+CLR_NEUTRAL  = "#6b7280"    # Slate
 
-# ── Checker ──────────────────────────────────────────────────────────────────
+# ── Checker ───────────────────────────────────────────────────────────────────
 CLR_MATCH    = "#6ee7b7"    # Soft emerald → matching position
 
-# ── Text hierarchy ───────────────────────────────────────────────────────────
-CLR_TEXT     = "#e2e8f0"    # Primary
-CLR_TEXT_MID = "#94a3b8"    # Secondary
-CLR_TEXT_DIM = "#475569"    # Muted / disabled
-CLR_TEXT_DARK = "#94a3b8"   # Backward compat alias
+# ── Text hierarchy ────────────────────────────────────────────────────────────
+CLR_TEXT     = "#ededf5"    # Primary
+CLR_TEXT_MID = "#6b6b80"    # Secondary
+CLR_TEXT_DIM = "#3a3a50"    # Muted / disabled
+CLR_TEXT_DARK = "#6b6b80"   # Backward compat alias
 
-# ── Buttons ──────────────────────────────────────────────────────────────────
-CLR_BTN_PRIMARY = "#6366f1"
-CLR_BTN_HOVER   = "#4f46e5"
-CLR_BTN_DANGER  = "#dc2626"
+# ── Buttons ───────────────────────────────────────────────────────────────────
+CLR_BTN_PRIMARY = "#22c55e"
+CLR_BTN_HOVER   = "#16a34a"
+CLR_BTN_DANGER  = "#ef4444"
 
-# ── Backward-compat aliases (used by existing tab code) ──────────────────────
+# ── Backward-compat aliases ───────────────────────────────────────────────────
 CLR_FRAME    = CLR_CARD
 CLR_FRAME2   = CLR_CARD2
 
-# ── Typography ───────────────────────────────────────────────────────────────
+# ── Typography ────────────────────────────────────────────────────────────────
 FONT_TITLE  = ("Segoe UI", 18, "bold")
 FONT_HEADER = ("Segoe UI", 13, "bold")
 FONT_BODY   = ("Segoe UI", 11)

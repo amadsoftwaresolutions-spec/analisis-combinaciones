@@ -7,7 +7,7 @@ import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
 
-from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_TEXT, CLR_TEXT_DIM,
+from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_TEXT, CLR_TEXT_MID, CLR_TEXT_DIM,
                     CLR_PRIME, CLR_COMPOSITE, CLR_MATCH, CLR_BTN_PRIMARY,
                     MIN_SIMILAR_MATCHES)
 from utils.math_utils import is_prime
@@ -36,8 +36,8 @@ class TabChecker:
                      font=ctk.CTkFont(size=14, weight="bold"),
                      text_color=CLR_TEXT).pack(side="left", padx=(4, 20))
 
-        ctk.CTkButton(btn_row, text="🔍  Verificar",
-                      fg_color=CLR_BTN_PRIMARY, hover_color="#4f46e5",
+        ctk.CTkButton(btn_row, text="◎  Verificar",
+                      fg_color=CLR_BTN_PRIMARY, hover_color="#16a34a",
                       height=36, width=120,
                       command=self._verify).pack(side="left", padx=(0, 8))
 
@@ -81,8 +81,8 @@ class TabChecker:
         self._results_text = tk.Text(
             bottom,
             font=("Consolas", 11),
-            bg=CLR_BG, fg="#e2e8f0",
-            selectbackground="#4c1d95",
+            bg=CLR_BG, fg=CLR_TEXT,
+            selectbackground="#052e16",
             relief="flat", bd=0,
             wrap="none", state="disabled",
         )
@@ -107,7 +107,7 @@ class TabChecker:
                                           foreground=CLR_MATCH,
                                           font=("Consolas", 11, "bold"))
         self._results_text.tag_configure("header",
-                                          foreground="#8892b0",
+                                          foreground=CLR_TEXT_DIM,
                                           font=("Consolas", 9))
         self._results_text.tag_configure("row_even", background=CLR_CARD)
         self._results_text.tag_configure("row_odd", background=CLR_CARD2)

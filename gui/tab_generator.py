@@ -10,7 +10,7 @@ from tkinter import messagebox
 import customtkinter as ctk
 
 from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_TEXT, CLR_TEXT_DIM,
-                    CLR_PRIME, CLR_COMPOSITE, CLR_BTN_PRIMARY, CLR_ACCENT,
+                    CLR_PRIME, CLR_COMPOSITE, CLR_BTN_PRIMARY, CLR_ACCENT, CLR_TEXT,
                     CLR_BTN_DANGER, MIN_GENERATE, MAX_GENERATE,
                     RECENT_DRAWS_ANALYSIS, MIN_DRAWS_FOR_ML)
 from utils.math_utils import (is_prime, total_combinations,
@@ -61,8 +61,8 @@ class TabGenerator:
         self._progress_lbl.pack()
 
         ctk.CTkButton(
-            left, text="🧠  Entrenar Modelo IA",
-            fg_color=CLR_ACCENT, hover_color="#4f46e5",
+            left, text="⚡  Entrenar Modelo IA",
+            fg_color=CLR_ACCENT, hover_color="#16a34a",
             height=38, command=self._train_model,
         ).pack(padx=16, pady=(8, 4))
 
@@ -90,7 +90,7 @@ class TabGenerator:
                 variable=self._composition_var,
                 text_color=CLR_TEXT,
                 fg_color=CLR_ACCENT,
-                hover_color="#4f46e5",
+                hover_color="#16a34a",
                 font=ctk.CTkFont(size=11),
             ).pack(anchor="w", padx=12, pady=3)
 
@@ -120,7 +120,7 @@ class TabGenerator:
                 filt_frame, text=label, variable=var,
                 text_color=CLR_TEXT,
                 fg_color=CLR_ACCENT,
-                hover_color="#4f46e5",
+                hover_color="#16a34a",
                 checkmark_color="#ffffff",
                 font=ctk.CTkFont(size=11),
             ).pack(anchor="w", padx=12, pady=3)
@@ -149,8 +149,8 @@ class TabGenerator:
         self._count_lbl_w.pack(side="left", padx=6)
 
         ctk.CTkButton(
-            left, text="🎰  Generar Combinaciones",
-            fg_color=CLR_BTN_PRIMARY, hover_color="#4f46e5",
+            left, text="◈  Generar Combinaciones",
+            fg_color=CLR_BTN_PRIMARY, hover_color="#16a34a",
             height=40, font=ctk.CTkFont(size=12, weight="bold"),
             command=self._generate,
         ).pack(padx=16, pady=(10, 4))
@@ -198,8 +198,8 @@ class TabGenerator:
         self._result_text = tk.Text(
             right,
             font=("Consolas", 11),
-            bg=CLR_BG, fg="#e2e8f0",
-            selectbackground="#4c1d95",
+            bg=CLR_BG, fg=CLR_TEXT,
+            selectbackground="#052e16",
             relief="flat", bd=0,
             wrap="none", state="disabled",
         )
@@ -217,10 +217,10 @@ class TabGenerator:
         self._result_text.tag_configure("prime", foreground=CLR_PRIME)
         self._result_text.tag_configure("composite", foreground=CLR_COMPOSITE)
         self._result_text.tag_configure("header",
-                                         foreground="#8892b0",
+                                         foreground=CLR_TEXT_DIM,
                                          font=("Consolas", 9))
         self._result_text.tag_configure("section_title",
-                                         foreground="#ccd6f6",
+                                         foreground=CLR_TEXT,
                                          font=("Consolas", 11, "bold"))
         self._result_text.tag_configure("row_even", background=CLR_CARD)
         self._result_text.tag_configure("row_odd", background=CLR_CARD2)

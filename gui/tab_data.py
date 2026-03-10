@@ -16,7 +16,7 @@ from utils.math_utils import is_prime
 def _lbl(parent, text, **kw):
     return ctk.CTkLabel(parent, text=text,
                          font=ctk.CTkFont(family="Segoe UI", size=11),
-                         text_color=kw.pop("tc", "#ccd6f6"), **kw)
+                         text_color=kw.pop("tc", CLR_TEXT), **kw)
 
 
 class TabData:
@@ -54,8 +54,8 @@ class TabData:
                      ).pack(side="left")
 
         # Botón agregar
-        ctk.CTkButton(left, text="➕  Agregar Sorteo",
-                      fg_color=CLR_BTN_PRIMARY, hover_color="#4f46e5",
+        ctk.CTkButton(left, text="+  Agregar Sorteo",
+                      fg_color=CLR_BTN_PRIMARY, hover_color="#16a34a",
                       height=38,
                       command=self._add_draw).pack(pady=(10, 6))
 
@@ -92,27 +92,17 @@ class TabData:
         ctk.CTkLabel(top_row, text="Últimos sorteos registrados",
                      font=ctk.CTkFont(size=13, weight="bold"),
                      text_color=CLR_TEXT).pack(side="left")
-        ctk.CTkButton(top_row, text="🗑 Eliminar seleccionado",
-                      fg_color=CLR_BTN_DANGER, hover_color="#e53935",
+        ctk.CTkButton(top_row, text="× Eliminar seleccionado",
+                      fg_color=CLR_BTN_DANGER, hover_color="#dc2626",
                       width=170, height=30,
                       command=self._delete_selected).pack(side="right")
 
         # Tabla (Text widget con monospace)
         # ── Treeview con centrado y selección nativa ──
-        tv_style = ttk.Style()
-        tv_style.theme_use("clam")
-        tv_style.configure("LuminaDark.Treeview",
-            background=CLR_CARD, foreground="#e2e8f0",
-            fieldbackground=CLR_CARD, rowheight=26,
-            font=("Segoe UI", 9))
-        tv_style.configure("LuminaDark.Treeview.Heading",
-            background=CLR_CARD2, foreground="#818cf8",
-            font=("Segoe UI", 8, "bold"), relief="flat")
-        tv_style.map("LuminaDark.Treeview",
-            background=[("selected", "#6366f1")],
-            foreground=[("selected", "#ffffff")])
+        from gui.theme import apply_treeview_style
+        apply_treeview_style("Nova.Treeview", row_height=26)
 
-        self._tree = ttk.Treeview(right, style="LuminaDark.Treeview",
+        self._tree = ttk.Treeview(right, style="Nova.Treeview",
             selectmode="browse", show="headings")
         _sb = tk.Scrollbar(right, orient="vertical", command=self._tree.yview,
                            bg=CLR_FRAME2)

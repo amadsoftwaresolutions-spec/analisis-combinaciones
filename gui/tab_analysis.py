@@ -9,8 +9,9 @@ from tkinter import ttk
 import customtkinter as ctk
 
 from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_TEXT, CLR_TEXT_DIM,
+                    CLR_BORDER, CLR_ACCENT,
                     CLR_PRIME, CLR_COMPOSITE, CLR_HIGHER, CLR_LOWER,
-                    CLR_NEUTRAL, CLR_ACCENT, RECENT_DRAWS_ANALYSIS)
+                    CLR_NEUTRAL, RECENT_DRAWS_ANALYSIS)
 from utils.math_utils import (is_prime, total_combinations,
                                prime_only_combinations,
                                composite_only_combinations,
@@ -358,15 +359,14 @@ class TabAnalysis:
 def _section(parent, title: str) -> ctk.CTkFrame:
     """Crea un bloque de sección con título."""
     outer = ctk.CTkFrame(parent, fg_color=CLR_CARD, corner_radius=12,
-                         border_width=1, border_color="#1e2d44")
+                         border_width=1, border_color=CLR_BORDER)
     outer.pack(fill="x", padx=12, pady=(0, 10))
-    # Header with left accent bar
     hdr = tk.Frame(outer, bg=CLR_CARD)
     hdr.pack(fill="x", padx=16, pady=(14, 6))
-    tk.Frame(hdr, bg="#6366f1", width=3).pack(side="left", fill="y", padx=(0, 10))
+    tk.Frame(hdr, bg=CLR_ACCENT, width=3).pack(side="left", fill="y", padx=(0, 10))
     tk.Label(hdr, text=title,
              font=("Segoe UI", 12, "bold"),
-             fg="#e2e8f0", bg=CLR_CARD).pack(side="left")
+             fg=CLR_TEXT, bg=CLR_CARD).pack(side="left")
     return outer
 
 
