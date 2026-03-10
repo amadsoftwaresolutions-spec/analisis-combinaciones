@@ -301,27 +301,52 @@ def generate_combinations(reduced_universe: list[list[int]],
                             all_draws: list[list[int]],
                             count: int,
                             positions: int,
-                            min_num: int, max_num: int) -> list[list[int]]:
+                            min_num: int, max_num: int,
+                            # ── Filtros de composición ──────────────────
+                            composition: str = "mixta",
+                            # "mixta" | "solo_primos" | "solo_compuestos"
+                            # ── Filtros de exclusión ────────────────────
+                            excl_all_consecutive: bool = True,
+                            excl_all_prime: bool = True,
+                            excl_all_composite: bool = False,
+                            excl_repeated_historical: bool = True,
+                            excl_many_consecutive: bool = True,
+                            max_consecutive: int = 3,
+                            ) -> list[list[int]]:
     """
-    Genera hasta `count` combinaciones únicas desde el universo reducido,
-    evitando:
-      - combinaciones ya aparecidas (historial completo)
-      - todas consecutivas
-      - todas primas
-      - 4 o más números consecutivos en la misma combinación
+    Genera hasta `count` combinaciones únicas desde el universo reducido.
 
-    Devuelve lista de combinaciones ordenadas.
+    composition:
+        "mixta"           — primos y compuestos mezclados (default)
+        "solo_primos"     — solo números primos en la combinación
+        "solo_compuestos" — solo números compuestos en la combinación
+
+    Filtros de exclusión configurables:
+        excl_all_consecutive      — excluir si TODOS son consecutivos
+        excl_all_prime            — excluir si TODOS son primos
+        excl_all_composite        — excluir si TODOS son compuestos
+        excl_repeated_historical  — excluir si ya apareció exactamente
+        excl_many_consecutive     — excluir si hay ≥ max_consecutive seguidos
     """
+    from utils.math_utils import is_all_composite
+
     # Universo: unión de los mejores números por posición
     universe_set: set[int] = set()
     for nums in reduced_universe:
         universe_set.update(nums)
     pool = sorted(universe_set)
 
+    # Aplicar filtro de composición al pool
+    if composition == "solo_primos":
+        pool = [n for n in pool if is_prime(n)]
+    elif composition == "solo_compuestos":
+        pool = [n for n in pool if not is_prime(n)]
+    # "mixta" usa el pool completo
+
     historical = {tuple(sorted(d)) for d in all_draws}
     results = []
-    seen = set(historical)
-    max_attempts = count * 2000
+    seen = set(historical) if excl_repeated_historical else set()
+    max_attempts = count * 3000
 
     if len(pool) < positions:
         return []
@@ -330,15 +355,21 @@ def generate_combinations(reduced_universe: list[list[int]],
         if len(results) >= count:
             break
         combo = tuple(sorted(random.sample(pool, positions)))
-        if combo in seen:
+        if excl_repeated_historical and combo in seen:
             continue
         combo_list = list(combo)
-        if is_all_consecutive(combo_list):
+
+        # Filtros de exclusión
+        if excl_all_consecutive and is_all_consecutive(combo_list):
             continue
-        if is_all_prime(combo_list):
+        if excl_all_prime and is_all_prime(combo_list):
             continue
-        if has_many_consecutive(combo_list, max_consec=positions):
+        if excl_all_composite and is_all_composite(combo_list):
             continue
+        if excl_many_consecutive and has_many_consecutive(
+                combo_list, max_consec=max_consecutive):
+            continue
+
         seen.add(combo)
         results.append(combo_list)
 

@@ -73,11 +73,62 @@ class TabGenerator:
         ).pack(padx=16, pady=4)
 
         # Separador
+
+        # ── Módulo 2: Tipo de combinación ────────────────────────────────
+        ctk.CTkLabel(left, text="Tipo de combinación:",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=CLR_TEXT).pack(anchor="w", padx=20, pady=(4, 2))
+
+        self._composition_var = tk.StringVar(value="mixta")
+        comp_frame = ctk.CTkFrame(left, fg_color=CLR_FRAME2, corner_radius=8)
+        comp_frame.pack(fill="x", padx=14, pady=(0, 6))
+        for val, lbl in (("mixta", "Mixta (primos + compuestos)"),
+                         ("solo_primos", "Solo números primos"),
+                         ("solo_compuestos", "Solo números compuestos")):
+            ctk.CTkRadioButton(
+                comp_frame, text=lbl, value=val,
+                variable=self._composition_var,
+                text_color=CLR_TEXT,
+                fg_color=CLR_ACCENT,
+                hover_color="#4f46e5",
+                font=ctk.CTkFont(size=11),
+            ).pack(anchor="w", padx=12, pady=3)
+
+        # ── Módulo 3 & 4: Filtros de exclusión ───────────────────────────
+        ctk.CTkLabel(left, text="Filtros de exclusión:",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=CLR_TEXT).pack(anchor="w", padx=20, pady=(6, 2))
+
+        filt_frame = ctk.CTkFrame(left, fg_color=CLR_FRAME2, corner_radius=8)
+        filt_frame.pack(fill="x", padx=14, pady=(0, 6))
+
+        self._filt_consec_all  = tk.BooleanVar(value=True)
+        self._filt_prime_all   = tk.BooleanVar(value=True)
+        self._filt_composite_all = tk.BooleanVar(value=False)
+        self._filt_historical  = tk.BooleanVar(value=True)
+        self._filt_consec_many = tk.BooleanVar(value=True)
+
+        _filters = [
+            (self._filt_consec_all,    "Excluir todas-consecutivas"),
+            (self._filt_prime_all,     "Excluir todas-primas"),
+            (self._filt_composite_all, "Excluir todas-compuestas"),
+            (self._filt_historical,    "Excluir combinaciones históricas"),
+            (self._filt_consec_many,   "Excluir ≥3 consecutivos seguidos"),
+        ]
+        for var, label in _filters:
+            ctk.CTkCheckBox(
+                filt_frame, text=label, variable=var,
+                text_color=CLR_TEXT,
+                fg_color=CLR_ACCENT,
+                hover_color="#4f46e5",
+                checkmark_color="#ffffff",
+                font=ctk.CTkFont(size=11),
+            ).pack(anchor="w", padx=12, pady=3)
+
         ctk.CTkLabel(left, text="─" * 36,
                      font=ctk.CTkFont(size=8),
-                     text_color=CLR_TEXT_DIM).pack(pady=4)
+                     text_color=CLR_TEXT_DIM).pack(pady=2)
 
-        # Número de combinaciones
         ctk.CTkLabel(left, text="Combinaciones a generar:",
                      font=ctk.CTkFont(size=11),
                      text_color=CLR_TEXT_DIM).pack(anchor="w", padx=20)
@@ -290,7 +341,15 @@ class TabGenerator:
         self._generated = generate_combinations(
             self._reduced_universe, draws,
             count, lot["positions"],
-            lot["min_number"], lot["max_number"])
+            lot["min_number"], lot["max_number"],
+            composition=self._composition_var.get(),
+            excl_all_consecutive=self._filt_consec_all.get(),
+            excl_all_prime=self._filt_prime_all.get(),
+            excl_all_composite=self._filt_composite_all.get(),
+            excl_repeated_historical=self._filt_historical.get(),
+            excl_many_consecutive=self._filt_consec_many.get(),
+            max_consecutive=3,
+        )
 
         if not self._generated:
             messagebox.showwarning(
@@ -322,9 +381,23 @@ class TabGenerator:
 
         # ── Combinaciones generadas ──
         if combos:
+            comp_label = {"mixta": "Mixta", "solo_primos": "Solo primos",
+                          "solo_compuestos": "Solo compuestos"}.get(
+                self._composition_var.get(), "Mixta")
+            filters_on = []
+            if self._filt_consec_all.get():   filters_on.append("excl. todas-consec.")
+            if self._filt_prime_all.get():     filters_on.append("excl. todas-primas")
+            if self._filt_composite_all.get(): filters_on.append("excl. todas-compuestas")
+            if self._filt_historical.get():    filters_on.append("excl. históricas")
+            if self._filt_consec_many.get():   filters_on.append("excl. ≥3 consec.")
+            filt_str = "  |  ".join(filters_on) if filters_on else "sin filtros extra"
+
             t.insert("end",
-                      f"══ COMBINACIONES GENERADAS ({len(combos)}) ══\n\n",
+                      f"══ COMBINACIONES GENERADAS ({len(combos)}) ══\n",
                       "section_title")
+            t.insert("end",
+                      f"   Tipo: {comp_label}   |   {filt_str}\n\n",
+                      "header")
             for idx, combo in enumerate(combos):
                 tag = "row_even" if idx % 2 == 0 else "row_odd"
                 t.insert("end", f"  {idx + 1:>3}.  ", tag)
@@ -378,6 +451,13 @@ class TabGenerator:
         self._progress_lbl.configure(text="")
         self._stats_lbl.configure(text="Calcule la reducción primero.")
         self._result_count_lbl.configure(text="")
+        # Reset filters to safe defaults
+        self._composition_var.set("mixta")
+        self._filt_consec_all.set(True)
+        self._filt_prime_all.set(True)
+        self._filt_composite_all.set(False)
+        self._filt_historical.set(True)
+        self._filt_consec_many.set(True)
         t = self._result_text
         t.configure(state="normal")
         t.delete("1.0", "end")
