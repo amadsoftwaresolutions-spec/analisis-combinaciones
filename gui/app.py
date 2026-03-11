@@ -11,7 +11,8 @@ from config import (APP_NAME, APP_VERSION,
                     CLR_BG, CLR_CARD, CLR_CARD2, CLR_INPUT, CLR_BORDER,
                     CLR_ACCENT, CLR_ACCENT2, CLR_ACCENT_DIM,
                     CLR_TEXT, CLR_TEXT_MID, CLR_TEXT_DIM,
-                    CLR_BTN_PRIMARY)
+                    CLR_BTN_PRIMARY,
+                    THEME_DARK, THEME_LIGHT)
 from database import Database
 from gui.tab_config    import TabConfig
 from gui.tab_data      import TabData
@@ -75,6 +76,7 @@ class LotteryAnalyzerApp:
     def __init__(self):
         self.state = AppState()
         self._current_page = "config"
+        self._is_dark = True           # start in dark mode
         self._nav_labels: dict[str, tk.Label] = {}
         self._nav_frames: dict[str, tk.Frame] = {}
         self._pages: dict[str, ctk.CTkFrame] = {}
@@ -175,8 +177,22 @@ class LotteryAnalyzerApp:
                       font=ctk.CTkFont(size=14),
                       command=self._refresh_lottery_selector).pack(side="left")
 
+        # ── Theme toggle ──────────────────────────────────────────────────────
+        theme_frm = tk.Frame(bar, bg=HDR)
+        theme_frm.pack(side="right", padx=(0, 14))
+        self._theme_btn = tk.Label(
+            theme_frm, text="☀",
+            font=("Segoe UI", 17),
+            fg=CLR_TEXT_DIM, bg=HDR,
+            cursor="hand2",
+        )
+        self._theme_btn.pack()
+        self._theme_btn.bind("<Button-1>", lambda e: self._toggle_theme())
+        self._theme_hdr = HDR   # remember for retheme
+
         # Bottom separator
-        tk.Frame(self.root, bg=CLR_BORDER, height=1).pack(fill="x", side="top")
+        self._topbar_sep = tk.Frame(self.root, bg=CLR_BORDER, height=1)
+        self._topbar_sep.pack(fill="x", side="top")
 
     def _animate_mark(self):
         """Subtle pulsing glow on the logo square."""
@@ -431,6 +447,52 @@ class LotteryAnalyzerApp:
         tab = self._tab_instances.get(self._current_page)
         if tab and hasattr(tab, "refresh"):
             tab.refresh()
+
+    # ── Theme toggle ──────────────────────────────────────────────────────────
+    def _toggle_theme(self):
+        self._is_dark = not self._is_dark
+        mode = "dark" if self._is_dark else "light"
+        ctk.set_appearance_mode(mode)
+        palette = THEME_DARK if self._is_dark else THEME_LIGHT
+        icon   = "☀" if self._is_dark else "🌙"
+        self._theme_btn.configure(text=icon)
+        # Build reverse-lookup: old_hex → new_hex for bg and fg
+        old_p = THEME_LIGHT if self._is_dark else THEME_DARK
+        bg_map = {old_p[k]: palette[k] for k in palette}
+        self._retheme_widgets(self.root, bg_map)
+
+    def _retheme_widgets(self, widget, bg_map: dict):
+        """Recursively update bg/fg of all tk.* widgets using a color swap map."""
+        cls = widget.__class__.__name__
+        try:
+            if cls in ("Frame", "Canvas", "Scrollbar", "Labelframe"):
+                cur = widget.cget("bg")
+                if cur.lower() in bg_map:
+                    widget.configure(bg=bg_map[cur.lower()])
+            elif cls == "Label":
+                cur_bg = widget.cget("bg")
+                cur_fg = widget.cget("fg")
+                new_bg = bg_map.get(cur_bg.lower(), cur_bg)
+                new_fg = bg_map.get(cur_fg.lower(), cur_fg)
+                widget.configure(bg=new_bg, fg=new_fg)
+            elif cls == "Entry":
+                cur_bg = widget.cget("bg")
+                cur_fg = widget.cget("fg")
+                new_bg = bg_map.get(cur_bg.lower(), cur_bg)
+                new_fg = bg_map.get(cur_fg.lower(), cur_fg)
+                widget.configure(bg=new_bg, fg=new_fg,
+                                 insertbackground=new_fg)
+            elif cls == "Text":
+                cur_bg = widget.cget("bg")
+                cur_fg = widget.cget("fg")
+                widget.configure(
+                    bg=bg_map.get(cur_bg.lower(), cur_bg),
+                    fg=bg_map.get(cur_fg.lower(), cur_fg),
+                )
+        except Exception:
+            pass
+        for child in widget.winfo_children():
+            self._retheme_widgets(child, bg_map)
 
     def run(self):
         self.root.mainloop()

@@ -19,7 +19,8 @@ MAX_NUMBER_VALUE = 99
 # Configuración de análisis
 RECENT_DRAWS_ANALYSIS = 30   # Últimos sorteos para análisis IA
 HISTORY_DISPLAY = 50         # Sorteos a mostrar en historial
-MIN_SIMILAR_MATCHES = 3      # Mínimo de coincidencias por posición para "similar"
+MIN_SIMILAR_MATCHES    = 4    # Mínimo de coincidencias por posición para "similar"
+REDUCTION_TARGET_PCT  = 0.50  # Fracción mínima del universo en la reducción IA (0.0–1.0)
 
 # Generación de combinaciones
 MIN_GENERATE = 1
@@ -95,6 +96,24 @@ CLR_BTN_DANGER  = "#ef4444"
 # ── Backward-compat aliases ───────────────────────────────────────────────────
 CLR_FRAME    = CLR_CARD
 CLR_FRAME2   = CLR_CARD2
+
+# ── Theme palettes (dark ↔ light) ─────────────────────────────────────────────
+# Each palette maps a logical role to a hex color.
+# Used by the theme-toggle system in app.py to retheme tk.* widgets.
+THEME_DARK = {
+    "BG":      "#0d0d10",  "CARD":    "#161620",  "CARD2":   "#1c1c28",
+    "INPUT":   "#1a1a24",  "BORDER":  "#252538",  "BORDER2": "#333348",
+    "TEXT":    "#ededf5",  "TEXT_MID":"#6b6b80",  "TEXT_DIM":"#3a3a50",
+    "HDR":     "#08080c",  "NAV":     "#09090e",  "BAR":     "#07070a",
+    "GRID":    "#13131a",  "GHDR":    "#0c0c14",  "GBORDER": "#2e2e45",
+}
+THEME_LIGHT = {
+    "BG":      "#f5f5f7",  "CARD":    "#ffffff",  "CARD2":   "#eef0f5",
+    "INPUT":   "#e9ecef",  "BORDER":  "#d1d5db",  "BORDER2": "#b0b8c4",
+    "TEXT":    "#111827",  "TEXT_MID":"#6b7280",  "TEXT_DIM":"#9ca3af",
+    "HDR":     "#f0f0f3",  "NAV":     "#e8e8ed",  "BAR":     "#e5e5ea",
+    "GRID":    "#f8f8fc",  "GHDR":    "#e8e8f0",  "GBORDER": "#c5c5d5",
+}
 
 # ── Typography ────────────────────────────────────────────────────────────────
 FONT_TITLE  = ("Segoe UI", 18, "bold")

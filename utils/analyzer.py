@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from collections import defaultdict
 import numpy as np
-from config import (RECENT_DRAWS_ANALYSIS, MIN_SIMILAR_MATCHES,
+from config import (RECENT_DRAWS_ANALYSIS, REDUCTION_TARGET_PCT, MIN_SIMILAR_MATCHES,
                     THIRDS_HOT_FACTOR, HL_CONFIDENCE)
 from utils.math_utils import is_prime, is_all_consecutive, is_all_prime, has_many_consecutive
 
@@ -249,15 +249,16 @@ def score_numbers(draws: list[list[int]], positions: int,
 def build_reduced_universe(scores_per_pos: list[dict[int, float]],
                             ml_scores_per_pos: list[dict[int, float]] | None,
                             min_num: int, max_num: int, positions: int,
-                            target_pct: float = 0.5) -> list[list[int]]:
+                            target_pct: float = REDUCTION_TARGET_PCT) -> list[list[int]]:
     """
     Combina scores estadísticos y de ML, luego selecciona los mejores números
-    por posición de manera que la reducción sea ≤ target_pct del universo total.
+    por posición garantizando una reducción ≥ target_pct del universo total.
 
     Estrategia:
       1. Mezcla scores: 50% estadístico + 50% ML (si disponible).
       2. Ordena números de mayor a menor score.
-      3. Selecciona el mínimo de números cuya probabilidad acumulada ≥ 70%.
+      3. Selecciona números en orden hasta cubrir al menos el 50% del pool
+         Y alcanzar el 70% de probabilidad acumulada (ambas condiciones).
       4. Garantiza al menos 2 números por posición para poder generar combos.
       5. La unión de todos los números seleccionados es el universo reducido.
 
@@ -280,16 +281,17 @@ def build_reduced_universe(scores_per_pos: list[dict[int, float]],
         sorted_nums = sorted(mixed.items(), key=lambda x: x[1], reverse=True)
         total_score = sum(v for _, v in sorted_nums) or 1.0
 
-        # Selección acumulativa hasta 70% de probabilidad o ≤50% del pool
-        max_count = max(2, int(pool_size * target_pct))
+        # Selección acumulativa: mínimo 50% del pool, máximo 100%
+        min_count = max(2, int(pool_size * target_pct))
         chosen = []
+        chosen_set: set[int] = set()
         cum = 0.0
         for n, sc in sorted_nums:
             chosen.append(n)
+            chosen_set.add(n)
             cum += sc / total_score
-            if cum >= 0.70 and len(chosen) >= 2:
-                break
-            if len(chosen) >= max_count:
+            # Sólo detener si ya se alcanzó la reducción mínima del 50%
+            if len(chosen) >= min_count and cum >= 0.70:
                 break
 
         selected_per_pos.append(sorted(chosen))

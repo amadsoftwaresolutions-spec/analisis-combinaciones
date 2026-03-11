@@ -134,14 +134,11 @@ class TabChecker:
             bg=CLR_BG, fg=CLR_TEXT,
             selectbackground="#052e16",
             relief="flat", bd=0,
-            wrap="none", state="disabled",
+            wrap="word", state="disabled",
         )
         sy = tk.Scrollbar(bottom, command=self._results_text.yview, bg=CLR_FRAME2)
-        sx = tk.Scrollbar(bottom, orient="horizontal",
-                           command=self._results_text.xview, bg=CLR_FRAME2)
-        self._results_text.configure(yscrollcommand=sy.set, xscrollcommand=sx.set)
+        self._results_text.configure(yscrollcommand=sy.set)
         sy.pack(side="right", fill="y")
-        sx.pack(side="bottom", fill="x")
         self._results_text.pack(fill="both", expand=True, padx=(12, 0), pady=(0, 12))
 
         self._results_text.tag_configure("prime",           foreground=CLR_PRIME)
@@ -429,8 +426,11 @@ def _section_header(parent: tk.Frame, title: str) -> None:
 
 def _section_cells(parent: tk.Frame, title: str, n: int) -> list[tk.Frame]:
     _section_header(parent, title)
-    row = tk.Frame(parent, bg=CLR_BG)
-    row.pack(fill="x", padx=2)
+    # outer fills the width; inner is centred inside it
+    outer = tk.Frame(parent, bg=CLR_BG)
+    outer.pack(fill="x", padx=2)
+    row = tk.Frame(outer, bg=CLR_BG)
+    row.pack(anchor="center")
     cells = []
     for _ in range(n):
         cell = tk.Frame(
