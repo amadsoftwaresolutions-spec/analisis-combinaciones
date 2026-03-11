@@ -117,6 +117,17 @@ THEME_LIGHT = {
     "HOVER":   "#e2e4ec",
 }
 
+# ── Active palette (updated at runtime by the theme toggle) ──────────────────
+_ACTIVE_PALETTE: dict = THEME_DARK
+
+def set_active_palette(mode: str) -> None:
+    """Call this when the user switches dark ↔ light."""
+    global _ACTIVE_PALETTE
+    _ACTIVE_PALETTE = THEME_DARK if mode == "dark" else THEME_LIGHT
+
+def get_active_palette() -> dict:
+    return _ACTIVE_PALETTE
+
 # ── Typography ────────────────────────────────────────────────────────────────
 FONT_TITLE  = ("Segoe UI", 18, "bold")
 FONT_HEADER = ("Segoe UI", 13, "bold")

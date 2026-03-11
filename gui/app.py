@@ -12,7 +12,8 @@ from config import (APP_NAME, APP_VERSION,
                     CLR_ACCENT, CLR_ACCENT2, CLR_ACCENT_DIM,
                     CLR_TEXT, CLR_TEXT_MID, CLR_TEXT_DIM,
                     CLR_BTN_PRIMARY,
-                    THEME_DARK, THEME_LIGHT)
+                    THEME_DARK, THEME_LIGHT,
+                    set_active_palette)
 from database import Database
 from gui.tab_config    import TabConfig
 from gui.tab_data      import TabData
@@ -473,20 +474,34 @@ class LotteryAnalyzerApp:
         self._is_dark = not self._is_dark
         mode = "dark" if self._is_dark else "light"
         ctk.set_appearance_mode(mode)
+        set_active_palette(mode)          # keep config in sync for widget rebuilds
         palette = THEME_DARK if self._is_dark else THEME_LIGHT
         icon   = "☀" if self._is_dark else "🌙"
         self._theme_btn.configure(text=icon)
         old_p = THEME_LIGHT if self._is_dark else THEME_DARK
         bg_map = {old_p[k]: palette[k] for k in palette}
-        self._retheme_widgets(self.root, bg_map)
+        self._retheme_widgets(self.root, bg_map, palette)
         # Re-apply nav label colours using the updated palette
         for k, lbl in self._nav_labels.items():
             lbl.configure(fg=palette["TEXT"] if k == self._current_page
                           else palette["TEXT_DIM"])
 
-    def _retheme_widgets(self, widget, bg_map: dict):
+    # ── Internal helper ───────────────────────────────────────────────────────
+    @staticmethod
+    def _bright(hex_color: str) -> bool:
+        """Return True when a #rrggbb colour is very bright (near white)."""
+        try:
+            r = int(hex_color[1:3], 16)
+            g = int(hex_color[3:5], 16)
+            b = int(hex_color[5:7], 16)
+            return (r * 299 + g * 587 + b * 114) / 1000 > 200
+        except Exception:
+            return False
+
+    def _retheme_widgets(self, widget, bg_map: dict, palette: dict):
         """Recursively retheme all tk.* and CTk* widgets."""
         cls = widget.__class__.__name__
+        going_light = not self._is_dark
         try:
             if cls in _CTK_CLR_ATTRS:
                 for attr in _CTK_CLR_ATTRS[cls]:
@@ -501,45 +516,121 @@ class LotteryAnalyzerApp:
                             widget.configure(**{attr: new})
                     except Exception:
                         pass
+
             elif cls in ("Frame", "Canvas", "Scrollbar", "LabelFrame"):
-                cur = widget.cget("bg")
-                new = bg_map.get(cur.lower())
-                if new:
-                    widget.configure(bg=new)
+                cur_bg = widget.cget("bg")
+                nb = bg_map.get(cur_bg.lower())
+                if nb:
+                    widget.configure(bg=nb)
+                # Also retheme the border colour
+                try:
+                    cur_hl = widget.cget("highlightbackground")
+                    nh = bg_map.get(cur_hl.lower())
+                    if nh:
+                        widget.configure(highlightbackground=nh)
+                except Exception:
+                    pass
+
+            elif cls == "Treeview":
+                # Update the shared TTK style
+                from tkinter import ttk as _ttk
+                st   = _ttk.Style()
+                sname = widget.cget("style") or "Treeview"
+                card_bg  = palette["CARD"]
+                card2_bg = palette["CARD2"]
+                text_clr = palette["TEXT"]
+                st.configure(sname,
+                    background=card_bg, foreground=text_clr,
+                    fieldbackground=card_bg)
+                st.configure(f"{sname}.Heading",
+                    background=card2_bg, foreground=CLR_ACCENT)
+                st.map(sname,
+                    background=[("selected", CLR_ACCENT), ("!selected", card_bg)],
+                    foreground=[("selected", "#0d0d10"), ("!selected", text_clr)])
+                # Update existing row-tag colours
+                for tag in widget.tag_names():
+                    try:
+                        cur_tbg = widget.tag_configure(tag, "background") or ""
+                        cur_tfg = widget.tag_configure(tag, "foreground") or ""
+                        kw: dict = {}
+                        if cur_tbg:
+                            nb2 = bg_map.get(cur_tbg.lower())
+                            if nb2:
+                                kw["background"] = nb2
+                        if cur_tfg:
+                            nf2 = bg_map.get(cur_tfg.lower())
+                            if nf2:
+                                kw["foreground"] = nf2
+                        if kw:
+                            widget.tag_configure(tag, **kw)
+                    except Exception:
+                        pass
+
             elif cls == "Label":
+                cur_bg = widget.cget("bg")
+                cur_fg = widget.cget("fg")
                 kw: dict = {}
-                new_bg = bg_map.get(widget.cget("bg").lower())
-                new_fg = bg_map.get(widget.cget("fg").lower())
-                if new_bg:
-                    kw["bg"] = new_bg
-                if new_fg:
-                    kw["fg"] = new_fg
+                nb = bg_map.get(cur_bg.lower())
+                nf = bg_map.get(cur_fg.lower())
+                if nb:
+                    kw["bg"] = nb
+                if nf:
+                    kw["fg"] = nf
+                elif going_light and nb and self._bright(cur_fg):
+                    kw["fg"] = palette["TEXT"]   # white fg → dark text
                 if kw:
                     widget.configure(**kw)
+
             elif cls == "Entry":
+                cur_bg = widget.cget("bg")
+                cur_fg = widget.cget("fg")
                 kw = {}
-                new_bg = bg_map.get(widget.cget("bg").lower())
-                new_fg = bg_map.get(widget.cget("fg").lower())
-                if new_bg:
-                    kw["bg"] = new_bg
-                if new_fg:
-                    kw.update(fg=new_fg, insertbackground=new_fg)
+                nb = bg_map.get(cur_bg.lower())
+                nf = bg_map.get(cur_fg.lower())
+                if nb:
+                    kw["bg"] = nb
+                if nf:
+                    kw.update(fg=nf, insertbackground=nf)
+                elif going_light and nb and self._bright(cur_fg):
+                    kw.update(fg=palette["TEXT"], insertbackground=palette["TEXT"])
                 if kw:
                     widget.configure(**kw)
+
             elif cls == "Text":
+                cur_bg = widget.cget("bg")
+                cur_fg = widget.cget("fg")
                 kw = {}
-                new_bg = bg_map.get(widget.cget("bg").lower())
-                new_fg = bg_map.get(widget.cget("fg").lower())
-                if new_bg:
-                    kw["bg"] = new_bg
-                if new_fg:
-                    kw["fg"] = new_fg
+                nb = bg_map.get(cur_bg.lower())
+                nf = bg_map.get(cur_fg.lower())
+                if nb:
+                    kw["bg"] = nb
+                if nf:
+                    kw["fg"] = nf
                 if kw:
                     widget.configure(**kw)
+                # Update tag colours too
+                for tag in widget.tag_names():
+                    try:
+                        cur_tbg = widget.tag_cget(tag, "background") or ""
+                        cur_tfg = widget.tag_cget(tag, "foreground") or ""
+                        tw: dict = {}
+                        if cur_tbg:
+                            nb2 = bg_map.get(cur_tbg.lower())
+                            if nb2:
+                                tw["background"] = nb2
+                        if cur_tfg:
+                            nf2 = bg_map.get(cur_tfg.lower())
+                            if nf2:
+                                tw["foreground"] = nf2
+                        if tw:
+                            widget.tag_configure(tag, **tw)
+                    except Exception:
+                        pass
+
         except Exception:
             pass
         for child in widget.winfo_children():
-            self._retheme_widgets(child, bg_map)
+            self._retheme_widgets(child, bg_map, palette)
 
     def run(self):
         self.root.mainloop()

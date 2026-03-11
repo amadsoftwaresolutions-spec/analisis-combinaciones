@@ -19,6 +19,7 @@ from config import (
     CLR_ACCENT, CLR_BORDER,
     CLR_PRIME, CLR_COMPOSITE, CLR_MATCH, CLR_BTN_PRIMARY,
     MIN_SIMILAR_MATCHES,
+    get_active_palette,
 )
 from utils.math_utils import is_prime
 from utils.analyzer import (
@@ -179,6 +180,10 @@ class TabChecker:
         draws_num = [d["numbers"] for d in draws]
         hl        = predict_higher_lower(draws_num, n) if draws_num else []
 
+        p = get_active_palette()          # colours follow the active theme
+        cell_bg  = p["GRID"]
+        cell_txt = p["TEXT"]
+
         # ── Sección 1: ARMA TU COMBINACIÓN ──────────────────────────────────
         row1 = _section_cells(self._grid_frame, "ARMA TU COMBINACIÓN", n)
         for i, cell in enumerate(row1):
@@ -186,8 +191,8 @@ class TabChecker:
                 cell,
                 width=4,
                 font=("Arial Black", 18, "bold"),
-                bg=C_GRID, fg="#ffffff",
-                insertbackground="#ffffff",
+                bg=cell_bg, fg=cell_txt,
+                insertbackground=cell_txt,
                 relief="flat", bd=0,
                 justify="center",
             )
@@ -200,11 +205,11 @@ class TabChecker:
         row2 = _section_cells(self._grid_frame, "NÚMEROS DEL ÚLTIMO SORTEO", n)
         for i, cell in enumerate(row2):
             val   = str(last_draw[i]) if i < len(last_draw) else _DASH
-            color = "#ffffff" if val != _DASH else CLR_TEXT_DIM
+            color = cell_txt if val != _DASH else p["TEXT_DIM"]
             lbl = tk.Label(
                 cell, text=val,
                 font=("Arial Black", 20, "bold"),
-                fg=color, bg=C_GRID,
+                fg=color, bg=cell_bg,
             )
             lbl.place(relx=0.5, rely=0.5, anchor="center")
             self._last_labels.append(lbl)
@@ -219,13 +224,13 @@ class TabChecker:
                 elif "MENOR" in pred:
                     text, color = "MENOR", C_MENOR
                 else:
-                    text, color = "—", CLR_TEXT_DIM
+                    text, color = "—", p["TEXT_DIM"]
             else:
-                text, color = _DASH, CLR_TEXT_DIM
+                text, color = _DASH, p["TEXT_DIM"]
             lbl = tk.Label(
                 cell, text=text,
                 font=("Arial Black", 13, "bold"),
-                fg=color, bg=C_GRID,
+                fg=color, bg=cell_bg,
             )
             lbl.place(relx=0.5, rely=0.5, anchor="center")
             self._dir_labels.append(lbl)
@@ -237,7 +242,7 @@ class TabChecker:
                 cell,
                 width=9,
                 font=("Arial Black", 11, "bold"),
-                bg=C_GRID, fg=C_MENOR,
+                bg=cell_bg, fg=C_MENOR,
                 insertbackground=C_MENOR,
                 relief="flat", bd=0,
                 justify="center",
@@ -249,7 +254,7 @@ class TabChecker:
         _section_header(self._grid_frame, "REDUCCIÓN DE NÚMEROS GENERADA POR IA")
         ai_cell = tk.Frame(
             self._grid_frame,
-            bg=C_GRID,
+            bg=cell_bg,
             highlightbackground=C_ACTIVE,
             highlightthickness=1,
             height=CELL_H + 10,
@@ -260,7 +265,7 @@ class TabChecker:
             ai_cell,
             textvariable=self._ai_var,
             font=("Consolas", 13, "bold"),
-            fg=C_MAYOR, bg=C_GRID,
+            fg=C_MAYOR, bg=cell_bg,
             wraplength=1100,
             justify="center",
         ).place(relx=0.5, rely=0.5, anchor="center")
@@ -278,12 +283,13 @@ class TabChecker:
             self._verify()
 
     def _color_entries(self, _=None):
+        p = get_active_palette()
         for e in self._entries:
             try:
                 n = int(e.get())
                 e.configure(fg=CLR_PRIME if is_prime(n) else CLR_COMPOSITE)
             except ValueError:
-                e.configure(fg="#ffffff")
+                e.configure(fg=p["TEXT"])
 
     # ═══════════════════════════════════════════════════════════════════════════
     #  Acciones
@@ -408,10 +414,11 @@ class TabChecker:
 # ── Module-level grid helpers ─────────────────────────────────────────────────
 
 def _section_header(parent: tk.Frame, title: str) -> None:
+    p = get_active_palette()
     hdr = tk.Frame(
         parent,
-        bg=C_HDR,
-        highlightbackground=C_BORDER,
+        bg=p["GHDR"],
+        highlightbackground=p["GBORDER"],
         highlightthickness=1,
         height=HDR_H,
     )
@@ -420,23 +427,25 @@ def _section_header(parent: tk.Frame, title: str) -> None:
     tk.Label(
         hdr, text=title,
         font=("Arial Black", 10, "bold"),
-        fg=C_HDR_TXT, bg=C_HDR,
+        fg=p["TEXT"], bg=p["GHDR"],
     ).place(relx=0.5, rely=0.5, anchor="center")
 
 
 def _section_cells(parent: tk.Frame, title: str, n: int) -> list[tk.Frame]:
+    p = get_active_palette()
     _section_header(parent, title)
+    bg = p["BG"]
     # outer fills the width; inner is centred inside it
-    outer = tk.Frame(parent, bg=CLR_BG)
+    outer = tk.Frame(parent, bg=bg)
     outer.pack(fill="x", padx=2)
-    row = tk.Frame(outer, bg=CLR_BG)
+    row = tk.Frame(outer, bg=bg)
     row.pack(anchor="center")
     cells = []
     for _ in range(n):
         cell = tk.Frame(
             row,
-            bg=C_GRID,
-            highlightbackground=C_BORDER,
+            bg=p["GRID"],
+            highlightbackground=p["GBORDER"],
             highlightthickness=1,
             width=CELL_W,
             height=CELL_H,
@@ -448,11 +457,12 @@ def _section_cells(parent: tk.Frame, title: str, n: int) -> list[tk.Frame]:
 
 
 def _dot(parent, color: str):
-    c = tk.Canvas(parent, width=10, height=10, bg=CLR_CARD, highlightthickness=0)
+    p = get_active_palette()
+    c = tk.Canvas(parent, width=10, height=10, bg=p["CARD"], highlightthickness=0)
     c.create_oval(1, 1, 9, 9, fill=color, outline="")
     c.pack(side="left")
 
 
 def _lbl(parent, text: str, color: str):
     tk.Label(parent, text=text, font=("Segoe UI", 10),
-             fg=color, bg=CLR_CARD).pack(side="left")
+             fg=color, bg=get_active_palette()["CARD"]).pack(side="left")
