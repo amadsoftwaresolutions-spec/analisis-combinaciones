@@ -24,6 +24,26 @@ from gui.tab_history   import TabHistory
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+# ── CTk widget colour attributes used by the rethemer ────────────────────────
+_CTK_CLR_ATTRS: dict[str, list[str]] = {
+    "CTk":                ["fg_color"],
+    "CTkFrame":           ["fg_color"],
+    "CTkScrollableFrame": ["fg_color"],
+    "CTkLabel":           ["fg_color", "text_color"],
+    "CTkButton":          ["fg_color", "hover_color", "text_color", "border_color"],
+    "CTkEntry":           ["fg_color", "text_color", "border_color"],
+    "CTkComboBox":        ["fg_color", "text_color", "button_color", "button_hover_color",
+                           "border_color", "dropdown_fg_color", "dropdown_hover_color"],
+    "CTkScrollbar":       ["fg_color", "button_color", "button_hover_color"],
+    "CTkTextbox":         ["fg_color", "text_color", "border_color"],
+    "CTkSlider":          ["fg_color", "progress_color", "button_color"],
+    "CTkProgressBar":     ["fg_color", "progress_color"],
+    "CTkCheckBox":        ["fg_color", "hover_color", "text_color", "border_color"],
+    "CTkOptionMenu":      ["fg_color", "text_color", "button_color", "dropdown_fg_color"],
+    "CTkTabview":         ["fg_color"],
+    "CTkSegmentedButton": ["fg_color", "text_color"],
+}
+
 # ── Emerald pulse gradient ────────────────────────────────────────────────────
 _PULSE = ["#052e16", "#064e3b", "#065f46", "#047857", "#059669",
           "#10b981", "#22c55e", "#4ade80", "#22c55e", "#10b981",
@@ -456,39 +476,66 @@ class LotteryAnalyzerApp:
         palette = THEME_DARK if self._is_dark else THEME_LIGHT
         icon   = "☀" if self._is_dark else "🌙"
         self._theme_btn.configure(text=icon)
-        # Build reverse-lookup: old_hex → new_hex for bg and fg
         old_p = THEME_LIGHT if self._is_dark else THEME_DARK
         bg_map = {old_p[k]: palette[k] for k in palette}
         self._retheme_widgets(self.root, bg_map)
+        # Re-apply nav label colours using the updated palette
+        for k, lbl in self._nav_labels.items():
+            lbl.configure(fg=palette["TEXT"] if k == self._current_page
+                          else palette["TEXT_DIM"])
 
     def _retheme_widgets(self, widget, bg_map: dict):
-        """Recursively update bg/fg of all tk.* widgets using a color swap map."""
+        """Recursively retheme all tk.* and CTk* widgets."""
         cls = widget.__class__.__name__
         try:
-            if cls in ("Frame", "Canvas", "Scrollbar", "Labelframe"):
+            if cls in _CTK_CLR_ATTRS:
+                for attr in _CTK_CLR_ATTRS[cls]:
+                    try:
+                        cur = widget.cget(attr)
+                        if isinstance(cur, (list, tuple)):
+                            cur = cur[0]
+                        if not isinstance(cur, str):
+                            continue
+                        new = bg_map.get(cur.lower())
+                        if new:
+                            widget.configure(**{attr: new})
+                    except Exception:
+                        pass
+            elif cls in ("Frame", "Canvas", "Scrollbar", "LabelFrame"):
                 cur = widget.cget("bg")
-                if cur.lower() in bg_map:
-                    widget.configure(bg=bg_map[cur.lower()])
+                new = bg_map.get(cur.lower())
+                if new:
+                    widget.configure(bg=new)
             elif cls == "Label":
-                cur_bg = widget.cget("bg")
-                cur_fg = widget.cget("fg")
-                new_bg = bg_map.get(cur_bg.lower(), cur_bg)
-                new_fg = bg_map.get(cur_fg.lower(), cur_fg)
-                widget.configure(bg=new_bg, fg=new_fg)
+                kw: dict = {}
+                new_bg = bg_map.get(widget.cget("bg").lower())
+                new_fg = bg_map.get(widget.cget("fg").lower())
+                if new_bg:
+                    kw["bg"] = new_bg
+                if new_fg:
+                    kw["fg"] = new_fg
+                if kw:
+                    widget.configure(**kw)
             elif cls == "Entry":
-                cur_bg = widget.cget("bg")
-                cur_fg = widget.cget("fg")
-                new_bg = bg_map.get(cur_bg.lower(), cur_bg)
-                new_fg = bg_map.get(cur_fg.lower(), cur_fg)
-                widget.configure(bg=new_bg, fg=new_fg,
-                                 insertbackground=new_fg)
+                kw = {}
+                new_bg = bg_map.get(widget.cget("bg").lower())
+                new_fg = bg_map.get(widget.cget("fg").lower())
+                if new_bg:
+                    kw["bg"] = new_bg
+                if new_fg:
+                    kw.update(fg=new_fg, insertbackground=new_fg)
+                if kw:
+                    widget.configure(**kw)
             elif cls == "Text":
-                cur_bg = widget.cget("bg")
-                cur_fg = widget.cget("fg")
-                widget.configure(
-                    bg=bg_map.get(cur_bg.lower(), cur_bg),
-                    fg=bg_map.get(cur_fg.lower(), cur_fg),
-                )
+                kw = {}
+                new_bg = bg_map.get(widget.cget("bg").lower())
+                new_fg = bg_map.get(widget.cget("fg").lower())
+                if new_bg:
+                    kw["bg"] = new_bg
+                if new_fg:
+                    kw["fg"] = new_fg
+                if kw:
+                    widget.configure(**kw)
         except Exception:
             pass
         for child in widget.winfo_children():

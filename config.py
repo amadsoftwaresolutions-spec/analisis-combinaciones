@@ -106,6 +106,7 @@ THEME_DARK = {
     "TEXT":    "#ededf5",  "TEXT_MID":"#6b6b80",  "TEXT_DIM":"#3a3a50",
     "HDR":     "#08080c",  "NAV":     "#09090e",  "BAR":     "#07070a",
     "GRID":    "#13131a",  "GHDR":    "#0c0c14",  "GBORDER": "#2e2e45",
+    "HOVER":   "#222234",
 }
 THEME_LIGHT = {
     "BG":      "#f5f5f7",  "CARD":    "#ffffff",  "CARD2":   "#eef0f5",
@@ -113,6 +114,7 @@ THEME_LIGHT = {
     "TEXT":    "#111827",  "TEXT_MID":"#6b7280",  "TEXT_DIM":"#9ca3af",
     "HDR":     "#f0f0f3",  "NAV":     "#e8e8ed",  "BAR":     "#e5e5ea",
     "GRID":    "#f8f8fc",  "GHDR":    "#e8e8f0",  "GBORDER": "#c5c5d5",
+    "HOVER":   "#e2e4ec",
 }
 
 # ── Typography ────────────────────────────────────────────────────────────────
