@@ -15,8 +15,7 @@ from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_TEXT
                     RECENT_DRAWS_ANALYSIS, MIN_DRAWS_FOR_ML)
 from utils.math_utils import (is_prime, total_combinations,
                                format_large_number)
-from utils.analyzer import (score_numbers, build_reduced_universe,
-                             generate_combinations)
+from utils.analyzer import (score_numbers, generate_combinations)
 from ml.predictor import LotteryPredictor
 
 
@@ -26,6 +25,7 @@ class TabGenerator:
         self.state = state
         self._predictor: LotteryPredictor | None = None
         self._reduced_universe: list[list[int]] | None = None
+        self._global_pool_ranked: list[int] | None = None
         self._generated: list[list[int]] = []
         self._build()
 
@@ -161,6 +161,13 @@ class TabGenerator:
             height=32, command=self._export_txt,
         ).pack(padx=16, pady=4)
 
+        ctk.CTkButton(
+            left, text="🗂  Guardar sesión",
+            fg_color="#1e3a5f", hover_color="#1d4ed8",
+            text_color="#93c5fd",
+            height=32, command=self._save_session,
+        ).pack(padx=16, pady=(0, 4))
+
         # Estadísticas de reducción
         self._stats_frame = ctk.CTkFrame(left, fg_color=CLR_FRAME2,
                                           corner_radius=8)
@@ -180,10 +187,14 @@ class TabGenerator:
         _dot(info, CLR_PRIME); _lbl_s(info, " Primo  ", CLR_TEXT_DIM)
         _dot(info, CLR_COMPOSITE); _lbl_s(info, " Compuesto", CLR_TEXT_DIM)
 
-        # ── Panel derecho: resultados ──
-        right = ctk.CTkFrame(self.parent, fg_color=CLR_FRAME, corner_radius=10)
-        right.pack(side="left", fill="both", expand=True,
-                   padx=(6, 12), pady=12)
+        # ── Panel derecho: resultados + historial de sesiones ──
+        right_wrapper = ctk.CTkFrame(self.parent, fg_color="transparent")
+        right_wrapper.pack(side="left", fill="both", expand=True,
+                           padx=(6, 12), pady=12)
+
+        # ── Resultados (arriba) ──
+        right = ctk.CTkFrame(right_wrapper, fg_color=CLR_FRAME, corner_radius=10)
+        right.pack(fill="both", expand=True, pady=(0, 6))
 
         top_row = ctk.CTkFrame(right, fg_color="transparent")
         top_row.pack(fill="x", padx=14, pady=(10, 0))
@@ -224,6 +235,62 @@ class TabGenerator:
                                          font=("Consolas", 11, "bold"))
         self._result_text.tag_configure("row_even", background=CLR_CARD)
         self._result_text.tag_configure("row_odd", background=CLR_CARD2)
+
+        # ── Historial de sesiones (abajo) ──
+        hist = ctk.CTkFrame(right_wrapper, fg_color=CLR_FRAME, corner_radius=10)
+        hist.pack(fill="x", pady=(0, 0))
+        hist.configure(height=180)
+        hist.pack_propagate(False)
+
+        hist_top = ctk.CTkFrame(hist, fg_color="transparent")
+        hist_top.pack(fill="x", padx=12, pady=(8, 4))
+        ctk.CTkLabel(hist_top, text="🗂  Historial de sesiones guardadas",
+                     font=ctk.CTkFont(size=12, weight="bold"),
+                     text_color=CLR_TEXT).pack(side="left")
+
+        btn_hist = ctk.CTkFrame(hist_top, fg_color="transparent")
+        btn_hist.pack(side="right")
+        ctk.CTkButton(btn_hist, text="↻", width=28, height=26,
+                      fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+                      text_color=CLR_TEXT,
+                      command=self._load_session_list).pack(side="left", padx=2)
+        ctk.CTkButton(btn_hist, text="Cargar", width=70, height=26,
+                      fg_color=CLR_ACCENT, hover_color="#16a34a",
+                      command=self._load_selected_session).pack(side="left", padx=2)
+        ctk.CTkButton(btn_hist, text="Renombrar", width=90, height=26,
+                      fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+                      command=self._rename_session).pack(side="left", padx=2)
+        ctk.CTkButton(btn_hist, text="× Borrar", width=70, height=26,
+                      fg_color=CLR_BTN_DANGER, hover_color="#dc2626",
+                      command=self._delete_session).pack(side="left", padx=2)
+
+        from gui.theme import apply_treeview_style
+        import tkinter.ttk as ttk
+        apply_treeview_style("Nova.Treeview", row_height=24)
+        self._sess_tree = ttk.Treeview(hist, style="Nova.Treeview",
+            columns=("_name", "_date", "_draws", "_combos"),
+            show="headings", selectmode="browse")
+        _ssy = tk.Scrollbar(hist, orient="vertical",
+                            command=self._sess_tree.yview, bg=CLR_FRAME2)
+        self._sess_tree.configure(yscrollcommand=_ssy.set)
+        _ssy.pack(side="right", fill="y")
+        self._sess_tree.pack(fill="both", expand=True, padx=(12, 0), pady=(0, 8))
+
+        for col, hdr, w in [
+            ("_name",   "Nombre",       260),
+            ("_date",   "Fecha",        130),
+            ("_draws",  "Sorteos usados", 100),
+            ("_combos", "Combinaciones",  100),
+        ]:
+            self._sess_tree.heading(col, text=hdr, anchor="w")
+            self._sess_tree.column(col, width=w, anchor="w", minwidth=60)
+
+        self._sess_tree.tag_configure("row_even", background=CLR_CARD,
+                                       foreground=CLR_TEXT)
+        self._sess_tree.tag_configure("row_odd",  background=CLR_CARD2,
+                                       foreground=CLR_TEXT)
+        # map session id → tree iid
+        self._sess_id_map: dict[str, int] = {}
 
     # ──────────────────────── Acciones ───────────────────────────────────
     def _get_draws(self):
@@ -294,22 +361,45 @@ class TabGenerator:
 
         stat_scores = score_numbers(draws, pos, mn, mx)
 
-        ml_scores = None
+        ml_scores_raw = None
         if self._predictor and self._predictor.is_trained:
             ml_scores_raw = self._predictor.predict_scores(
                 draws[-20:] if len(draws) >= 20 else draws)
-            if ml_scores_raw:
-                ml_scores = ml_scores_raw
 
-        self._reduced_universe = build_reduced_universe(
-            stat_scores, ml_scores, mn, mx, pos, target_pct=0.5)
+        # ── Score global: sumar puntuaciones de todas las posiciones ──
+        full_range = range(mn, mx + 1)
+        global_score: dict[int, float] = {n: 0.0 for n in full_range}
+        for pos_scores in stat_scores:
+            for n, s in pos_scores.items():
+                global_score[n] += s
+
+        if ml_scores_raw:
+            ml_global: dict[int, float] = {n: 0.0 for n in full_range}
+            for pos_scores in ml_scores_raw:
+                for n, s in pos_scores.items():
+                    ml_global[n] += s
+            max_stat = max(global_score.values()) or 1
+            max_ml   = max(ml_global.values()) or 1
+            for n in full_range:
+                global_score[n] = (0.5 * global_score[n] / max_stat
+                                   + 0.5 * ml_global[n] / max_ml)
+
+        # Top 50% del universo ordenado por score global
+        pool_n = mx - mn + 1
+        keep_n = max(pos, round(pool_n * 0.5))
+        sorted_by_score = sorted(global_score.items(),
+                                 key=lambda x: x[1], reverse=True)
+        global_pool = [n for n, _ in sorted_by_score[:keep_n]]
+        # Guardar también el orden de score para el display
+        self._global_pool_ranked = global_pool[:]          # ya ordenado por score
+        global_pool_sorted = sorted(global_pool)           # ordenado numéricamente
+
+        # El generador espera list[list[int]] (una por posición); usamos el mismo pool
+        self._reduced_universe = [global_pool_sorted[:] for _ in range(pos)]
 
         # Calcular estadísticas
         from math import comb as _comb
-        universe_set = set()
-        for nums in self._reduced_universe:
-            universe_set.update(nums)
-        pool_size = len(universe_set)
+        pool_size = len(global_pool)
         total_u = total_combinations(mx, pos, mn)
         reduced_c = _comb(pool_size, pos) if pool_size >= pos else 0
         pct = (reduced_c / total_u * 100) if total_u > 0 else 0
@@ -320,7 +410,7 @@ class TabGenerator:
                 f"Universo reducido:    {format_large_number(reduced_c)}\n"
                 f"Reducción:            {pct:.1f}%  "
                 f"({'✅ ≤50%' if pct <= 50 else '⚠️ >50%'})\n"
-                f"Números en pool:      {pool_size}"
+                f"Mejores números:      {pool_size} de {pool_n}"
             )
         )
         self._render_universe(self._reduced_universe)
@@ -368,15 +458,33 @@ class TabGenerator:
         t.configure(state="normal")
         t.delete("1.0", "end")
 
-        # ── Universo reducido por posición ──
-        t.insert("end", "══ UNIVERSO REDUCIDO (números calificados por IA) ══\n\n",
+        # ── Universo reducido: pool global ordenado por score ──
+        t.insert("end", "══ UNIVERSO REDUCIDO (mejores números por score global IA) ══\n",
                   "section_title")
-        for p, nums in enumerate(universe):
-            t.insert("end", f"  Balota {p + 1}:  ", "header")
-            for n in nums:
+        # Usar el orden de score si está disponible, si no, orden numerico
+        pool_ranked = getattr(self, "_global_pool_ranked", None)
+        if pool_ranked is None:
+            # Fallback: unión ordenada numéricamente (sesión cargada)
+            pool_set: set[int] = set()
+            for nums in universe:
+                pool_set.update(nums)
+            pool_ranked = sorted(pool_set)
+        pool_n_total = (self.state.lottery["max_number"]
+                        - self.state.lottery["min_number"] + 1
+                        if self.state.has_lottery else len(pool_ranked))
+        t.insert("end",
+                  f"  Top {len(pool_ranked)} de {pool_n_total} números — "
+                  f"ordenados por score (violeta=primo, naranja=compuesto):\n\n",
+                  "header")
+        # Mostrar en filas de 15 números
+        ROW = 15
+        for i in range(0, len(pool_ranked), ROW):
+            chunk = pool_ranked[i:i + ROW]
+            t.insert("end", "  ")
+            for n in chunk:
                 tag = "prime" if is_prime(n) else "composite"
                 t.insert("end", f"{n:>3} ", tag)
-            t.insert("end", f"  ({len(nums)} números)\n")
+            t.insert("end", "\n")
         t.insert("end", "\n")
 
         # ── Combinaciones generadas ──
@@ -440,10 +548,121 @@ class TabGenerator:
             messagebox.showerror("Error", f"No se pudo guardar: {e}")
 
     # ─────────────────────────────────────────────────────────────────────
+    # Historial de sesiones
+    # ─────────────────────────────────────────────────────────────────────
+    def _save_session(self):
+        if not self.state.has_lottery:
+            messagebox.showwarning("Sin lotería", "Selecciona una lotería primero.")
+            return
+        if self._reduced_universe is None:
+            messagebox.showwarning("Sin reducción",
+                                   "Calcula la reducción antes de guardar.")
+            return
+
+        from tkinter.simpledialog import askstring
+        name = askstring("Guardar sesión",
+                         "Nombre para esta sesión:",
+                         initialvalue=f"Sesión {self.state.lottery['name']}")
+        if not name or not name.strip():
+            return
+
+        draws_used = len(self._get_draws() or [])
+        self.state.db.save_training_session(
+            self.state.lottery_id,
+            name.strip(),
+            self._reduced_universe,
+            self._generated,
+            draws_used,
+        )
+        self._load_session_list()
+        messagebox.showinfo("Guardado", f"Sesión '{name.strip()}' guardada.")
+
+    def _load_session_list(self):
+        if not self.state.has_lottery:
+            return
+        for iid in self._sess_tree.get_children():
+            self._sess_tree.delete(iid)
+        self._sess_id_map.clear()
+
+        sessions = self.state.db.get_training_sessions(self.state.lottery_id)
+        for idx, s in enumerate(sessions):
+            tag = "row_even" if idx % 2 == 0 else "row_odd"
+            n_combos = len(s["combinations"])
+            iid = self._sess_tree.insert("", "end", tags=(tag,),
+                values=(s["name"], s["created_at"][:16],
+                        s["draws_used"], n_combos))
+            self._sess_id_map[iid] = s["id"]
+
+    def _load_selected_session(self):
+        sel = self._sess_tree.selection()
+        if not sel:
+            messagebox.showwarning("Seleccionar",
+                                   "Selecciona una sesión de la lista.")
+            return
+        sess_id = self._sess_id_map.get(sel[0])
+        if sess_id is None:
+            return
+        # Buscar la sesión completa
+        sessions = self.state.db.get_training_sessions(self.state.lottery_id)
+        sess = next((s for s in sessions if s["id"] == sess_id), None)
+        if sess is None:
+            return
+
+        self._reduced_universe = sess["universe"]
+        self._global_pool_ranked = None   # sesión guardada no tiene orden de score
+        self._generated = sess["combinations"]
+        self._model_info.configure(
+            text=f"✅  Sesión cargada: {sess['name']}",
+            text_color="#22c55e")
+        self._render_universe(self._reduced_universe,
+                              self._generated or None)
+        if self._generated:
+            self._result_count_lbl.configure(
+                text=f"{len(self._generated)} combinaciones")
+
+    def _rename_session(self):
+        sel = self._sess_tree.selection()
+        if not sel:
+            messagebox.showwarning("Seleccionar",
+                                   "Selecciona una sesión de la lista.")
+            return
+        sess_id = self._sess_id_map.get(sel[0])
+        if sess_id is None:
+            return
+        current = self._sess_tree.item(sel[0], "values")[0]
+        from tkinter.simpledialog import askstring
+        new_name = askstring("Renombrar", "Nuevo nombre:", initialvalue=current)
+        if not new_name or not new_name.strip():
+            return
+        self.state.db.rename_training_session(sess_id, new_name.strip())
+        self._load_session_list()
+
+    def _delete_session(self):
+        sel = self._sess_tree.selection()
+        if not sel:
+            messagebox.showwarning("Seleccionar",
+                                   "Selecciona una sesión de la lista.")
+            return
+        sess_id = self._sess_id_map.get(sel[0])
+        if sess_id is None:
+            return
+        name = self._sess_tree.item(sel[0], "values")[0]
+        if not messagebox.askyesno("Eliminar",
+                                   f"¿Eliminar la sesión '{name}'?"):
+            return
+        self.state.db.delete_training_session(sess_id)
+        self._load_session_list()
+
+    # ─────────────────────────────────────────────────────────────────────
+    def on_tab_enter(self):
+        """Al navegar a esta pestaña refresca solo la lista de sesiones."""
+        self._load_session_list()
+
     def refresh(self):
         # Resetear cuando cambia la lotería
         self._predictor = None
         self._reduced_universe = None
+        self._global_pool_ranked = None
         self._generated = []
         self._model_info.configure(text="Modelo: no entrenado",
                                     text_color=CLR_TEXT_DIM)
@@ -462,6 +681,7 @@ class TabGenerator:
         t.configure(state="normal")
         t.delete("1.0", "end")
         t.configure(state="disabled")
+        self._load_session_list()
 
 
 # ─── helpers ────────────────────────────────────────────────────────────────

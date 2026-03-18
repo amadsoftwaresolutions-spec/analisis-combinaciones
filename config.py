@@ -20,7 +20,8 @@ MAX_NUMBER_VALUE = 99
 RECENT_DRAWS_ANALYSIS = 30   # Últimos sorteos para análisis IA
 HISTORY_DISPLAY = 50         # Sorteos a mostrar en historial
 MIN_SIMILAR_MATCHES    = 4    # Mínimo de coincidencias por posición para "similar"
-REDUCTION_TARGET_PCT  = 0.50  # Fracción mínima del universo en la reducción IA (0.0–1.0)
+REDUCTION_TARGET_PCT  = 0.50  # Fracción mínima del universo en la reducción IA (generador)
+REDUCTION_DISPLAY_PCT = 0.50  # Fracción del universo que muestra la reducción IA en Verificar
 
 # Generación de combinaciones
 MIN_GENERATE = 1
@@ -85,7 +86,7 @@ CLR_MATCH    = "#6ee7b7"    # Soft emerald → matching position
 # ── Text hierarchy ────────────────────────────────────────────────────────────
 CLR_TEXT     = "#ededf5"    # Primary
 CLR_TEXT_MID = "#6b6b80"    # Secondary
-CLR_TEXT_DIM = "#3a3a50"    # Muted / disabled
+CLR_TEXT_DIM = "#8888a8"    # Muted / disabled
 CLR_TEXT_DARK = "#6b6b80"   # Backward compat alias
 
 # ── Buttons ───────────────────────────────────────────────────────────────────
@@ -103,7 +104,7 @@ CLR_FRAME2   = CLR_CARD2
 THEME_DARK = {
     "BG":      "#0d0d10",  "CARD":    "#161620",  "CARD2":   "#1c1c28",
     "INPUT":   "#1a1a24",  "BORDER":  "#252538",  "BORDER2": "#333348",
-    "TEXT":    "#ededf5",  "TEXT_MID":"#6b6b80",  "TEXT_DIM":"#3a3a50",
+    "TEXT":    "#ededf5",  "TEXT_MID":"#6b6b80",  "TEXT_DIM":"#8888a8",
     "HDR":     "#08080c",  "NAV":     "#09090e",  "BAR":     "#07070a",
     "GRID":    "#13131a",  "GHDR":    "#0c0c14",  "GBORDER": "#2e2e45",
     "HOVER":   "#222234",

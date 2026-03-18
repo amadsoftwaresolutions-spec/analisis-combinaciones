@@ -18,13 +18,13 @@ from config import (
     CLR_TEXT, CLR_TEXT_MID, CLR_TEXT_DIM,
     CLR_ACCENT, CLR_BORDER,
     CLR_PRIME, CLR_COMPOSITE, CLR_MATCH, CLR_BTN_PRIMARY,
-    MIN_SIMILAR_MATCHES,
+    MIN_SIMILAR_MATCHES, REDUCTION_DISPLAY_PCT,
     get_active_palette,
 )
 from utils.math_utils import is_prime
 from utils.analyzer import (
     find_exact_match, find_similar, predict_higher_lower,
-    score_numbers, build_reduced_universe,
+    score_numbers,
 )
 
 # ── Visual constants (grid) ───────────────────────────────────────────────────
@@ -176,7 +176,7 @@ class TabChecker:
         lot       = self.state.lottery
         n         = lot["positions"]
         draws     = self.state.db.get_draws(self.state.lottery_id)
-        last_draw = draws[-1]["numbers"] if draws else []
+        last_draw = draws[0]["numbers"] if draws else []
         draws_num = [d["numbers"] for d in draws]
         hl        = predict_higher_lower(draws_num, n) if draws_num else []
 
@@ -343,14 +343,24 @@ class TabChecker:
         if not draws_num:
             self._ai_var.set("Sin datos suficientes para calcular la reducción IA.")
             return
-        scores   = score_numbers(
+
+        scores_per_pos = score_numbers(
             draws_num, lot["positions"], lot["min_number"], lot["max_number"]
         )
-        universe = build_reduced_universe(
-            scores, None,
-            lot["min_number"], lot["max_number"], lot["positions"],
-        )
-        flat = sorted({n for pos_nums in universe for n in pos_nums})
+
+        # Puntuación global: suma de scores de todas las posiciones por número
+        pool = range(lot["min_number"], lot["max_number"] + 1)
+        global_score = {
+            n: sum(pos.get(n, 0) for pos in scores_per_pos)
+            for n in pool
+        }
+
+        # Mantener solo el top REDUCTION_DISPLAY_PCT del universo
+        pool_size  = lot["max_number"] - lot["min_number"] + 1
+        keep_count = max(lot["positions"] + 1, round(pool_size * REDUCTION_DISPLAY_PCT))
+        top_nums   = sorted(global_score,
+                            key=lambda n: global_score[n], reverse=True)[:keep_count]
+        flat = sorted(top_nums)
         self._ai_var.set("  ".join(str(n) for n in flat))
 
     def _clear(self):
@@ -409,6 +419,7 @@ class TabChecker:
         self._clear_results()
         self._exact_var.set("")
         self._count_lbl.configure(text="")
+        self._ai_var.set("")
 
 
 # ── Module-level grid helpers ─────────────────────────────────────────────────

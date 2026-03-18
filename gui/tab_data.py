@@ -293,14 +293,12 @@ class TabData:
         if not self.state.has_lottery:
             return
 
-        draws = self.state.db.get_draws(self.state.lottery_id, limit=200)
+        draws = self.state.db.get_draws(self.state.lottery_id, limit=50)
         pos = self.state.lottery["positions"]
 
         # Configurar columnas según posiciones de la lotería
-        cols = ["_num", "_fecha"] + [f"_b{i}" for i in range(pos)]
+        cols = ["_fecha"] + [f"_b{i}" for i in range(pos)]
         self._tree["columns"] = cols
-        self._tree.heading("_num", text="#", anchor="center")
-        self._tree.column("_num", width=45, anchor="center", stretch=False, minwidth=40)
         self._tree.heading("_fecha", text="Fecha", anchor="center")
         self._tree.column("_fecha", width=110, anchor="center", stretch=False, minwidth=90)
         for i in range(pos):
@@ -313,7 +311,7 @@ class TabData:
 
         for row_idx, draw in enumerate(draws):
             tag = "row_even" if row_idx % 2 == 0 else "row_odd"
-            values = [row_idx + 1, draw["draw_date"]] + list(draw["numbers"])
+            values = [draw["draw_date"]] + list(draw["numbers"])
             iid = self._tree.insert("", "end", values=values, tags=(tag,))
             self._item_to_id[iid] = draw["id"]
 

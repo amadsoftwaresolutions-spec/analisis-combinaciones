@@ -39,8 +39,8 @@ def apply_treeview_style(style_name: str = "Nova.Treeview",
                  font=("Segoe UI", 9, "bold"))
 
     st.map(style_name,
-           background=[("selected", CLR_ACCENT), ("!selected", CLR_CARD)],
-           foreground=[("selected", "#0d0d10"), ("!selected", CLR_TEXT)])
+           background=[("selected", CLR_ACCENT)],
+           foreground=[("selected", "#0d0d10")])
 
     st.map(f"{style_name}.Heading",
            background=[("active", CLR_CARD2)],

@@ -327,7 +327,9 @@ class LotteryAnalyzerApp:
             new_page.place(x=0, y=0, relwidth=1, relheight=1)
 
         tab = self._tab_instances.get(key)
-        if tab and hasattr(tab, "refresh"):
+        if tab and hasattr(tab, "on_tab_enter"):
+            tab.on_tab_enter()
+        elif tab and hasattr(tab, "refresh"):
             tab.refresh()
 
     # ── Slide animation ───────────────────────────────────────────────────────
@@ -481,6 +483,11 @@ class LotteryAnalyzerApp:
         old_p = THEME_LIGHT if self._is_dark else THEME_DARK
         bg_map = {old_p[k]: palette[k] for k in palette}
         self._retheme_widgets(self.root, bg_map, palette)
+        # Re-render analysis tab if currently visible (rebuilds with new palette colors)
+        if self._current_page == "analysis":
+            tab = self._tab_instances.get("analysis")
+            if tab and hasattr(tab, "refresh"):
+                tab.refresh()
         # Re-apply nav label colours using the updated palette
         for k, lbl in self._nav_labels.items():
             lbl.configure(fg=palette["TEXT"] if k == self._current_page
@@ -545,8 +552,8 @@ class LotteryAnalyzerApp:
                 st.configure(f"{sname}.Heading",
                     background=card2_bg, foreground=CLR_ACCENT)
                 st.map(sname,
-                    background=[("selected", CLR_ACCENT), ("!selected", card_bg)],
-                    foreground=[("selected", "#0d0d10"), ("!selected", text_clr)])
+                    background=[("selected", CLR_ACCENT)],
+                    foreground=[("selected", "#0d0d10")])
                 # Update existing row-tag colours
                 for tag in widget.tag_names():
                     try:

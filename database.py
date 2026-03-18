@@ -8,6 +8,33 @@ from datetime import datetime
 from config import DB_PATH
 
 
+_DRAW_DATE_FORMATS = (
+    "%Y-%m-%d",
+    "%d/%m/%Y",
+    "%Y/%m/%d",
+    "%d-%m-%Y",
+)
+
+
+def _parse_draw_date(value: str | None) -> datetime:
+    if not value:
+        return datetime.min
+
+    text = value.strip()
+    try:
+        return datetime.fromisoformat(text)
+    except ValueError:
+        pass
+
+    for fmt in _DRAW_DATE_FORMATS:
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+
+    return datetime.min
+
+
 class Database:
     """Maneja todas las operaciones de persistencia."""
 
@@ -39,6 +66,17 @@ class Database:
                     draw_date   TEXT,
                     numbers     TEXT    NOT NULL,
                     created_at  TEXT    DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (lottery_id) REFERENCES lotteries(id) ON DELETE CASCADE
+                );
+
+                CREATE TABLE IF NOT EXISTS training_sessions (
+                    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    lottery_id      INTEGER NOT NULL,
+                    name            TEXT    NOT NULL,
+                    universe        TEXT    NOT NULL,
+                    combinations    TEXT    NOT NULL DEFAULT '[]',
+                    draws_used      INTEGER NOT NULL DEFAULT 0,
+                    created_at      TEXT    DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (lottery_id) REFERENCES lotteries(id) ON DELETE CASCADE
                 );
             """)
@@ -97,24 +135,29 @@ class Database:
 
     def get_draws(self, lottery_id: int, limit: int | None = None) -> list[dict]:
         sql = ("SELECT id, lottery_id, draw_date, numbers, created_at "
-               "FROM draws WHERE lottery_id=? ORDER BY draw_date DESC, id DESC")
-        params: tuple = (lottery_id,)
-        if limit:
-            sql += " LIMIT ?"
-            params = (lottery_id, limit)
+               "FROM draws WHERE lottery_id=?")
         with self._conn() as c:
-            rows = c.execute(sql, params).fetchall()
-        return [{"id": r[0], "lottery_id": r[1], "draw_date": r[2],
-                 "numbers": json.loads(r[3]), "created_at": r[4]} for r in rows]
+            rows = c.execute(sql, (lottery_id,)).fetchall()
+
+        draws = [{"id": r[0], "lottery_id": r[1], "draw_date": r[2],
+                  "numbers": json.loads(r[3]), "created_at": r[4]} for r in rows]
+        draws.sort(key=lambda draw: (_parse_draw_date(draw["draw_date"]), draw["id"]),
+                   reverse=True)
+
+        if limit:
+            return draws[:limit]
+        return draws
 
     def get_all_numbers(self, lottery_id: int) -> list[list[int]]:
         """Devuelve sólo las listas de números ordenadas cronológicamente (ASC)."""
         with self._conn() as c:
             rows = c.execute(
-                "SELECT numbers FROM draws WHERE lottery_id=? ORDER BY draw_date ASC, id ASC",
+                "SELECT id, draw_date, numbers FROM draws WHERE lottery_id=?",
                 (lottery_id,)
             ).fetchall()
-        return [json.loads(r[0]) for r in rows]
+
+        rows = sorted(rows, key=lambda row: (_parse_draw_date(row[1]), row[0]))
+        return [json.loads(r[2]) for r in rows]
 
     def delete_draw(self, draw_id: int):
         with self._conn() as c:
@@ -147,3 +190,40 @@ class Database:
                 self.add_draw(lottery_id, numbers, date)
                 inserted += 1
         return inserted
+
+    # ──────────────────────── training sessions ────────────────────────
+    def save_training_session(self, lottery_id: int, name: str,
+                               universe: list[list[int]],
+                               combinations: list[list[int]],
+                               draws_used: int) -> int:
+        with self._conn() as c:
+            cur = c.execute(
+                """INSERT INTO training_sessions
+                   (lottery_id, name, universe, combinations, draws_used)
+                   VALUES (?,?,?,?,?)""",
+                (lottery_id, name.strip(),
+                 json.dumps(universe), json.dumps(combinations), draws_used)
+            )
+            return cur.lastrowid
+
+    def get_training_sessions(self, lottery_id: int) -> list[dict]:
+        with self._conn() as c:
+            rows = c.execute(
+                """SELECT id, name, universe, combinations, draws_used, created_at
+                   FROM training_sessions WHERE lottery_id=?
+                   ORDER BY created_at DESC""",
+                (lottery_id,)
+            ).fetchall()
+        return [{"id": r[0], "name": r[1],
+                 "universe": json.loads(r[2]),
+                 "combinations": json.loads(r[3]),
+                 "draws_used": r[4], "created_at": r[5]} for r in rows]
+
+    def rename_training_session(self, session_id: int, name: str):
+        with self._conn() as c:
+            c.execute("UPDATE training_sessions SET name=? WHERE id=?",
+                      (name.strip(), session_id))
+
+    def delete_training_session(self, session_id: int):
+        with self._conn() as c:
+            c.execute("DELETE FROM training_sessions WHERE id=?", (session_id,))

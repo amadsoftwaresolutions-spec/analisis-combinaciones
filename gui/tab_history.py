@@ -4,6 +4,7 @@ Pestaña Historial — últimos 50 sorteos con resaltado de:
   • Números que aparecieron en el sorteo anterior (amarillo)
 """
 from __future__ import annotations
+import random
 import tkinter as tk
 import tkinter.ttk as ttk
 from tkinter import messagebox
@@ -41,15 +42,21 @@ class TabHistory:
         ctk.CTkButton(header, text="↻  Actualizar",
                       fg_color=CLR_FRAME2, hover_color=CLR_HOVER,
                       width=110, height=32,
-                      command=self.refresh).pack(side="right", padx=12)
+                      command=self.refresh).pack(side="right", padx=(4, 12))
+        ctk.CTkButton(header, text="＋ Cargar ejemplos",
+                      fg_color="#1e3a5f", hover_color="#1d4ed8",
+                      text_color="#93c5fd",
+                      width=140, height=32,
+                      command=self._load_samples).pack(side="right", padx=4)
 
         # Leyenda
         legend = ctk.CTkFrame(header, fg_color="transparent")
         legend.pack(side="right", padx=8)
-        _dot(legend, CLR_PRIME);       _lbl_s(legend, " Primo  ", CLR_TEXT_DIM)
-        _dot(legend, CLR_COMPOSITE);   _lbl_s(legend, " Compuesto  ", CLR_TEXT_DIM)
-        _dot(legend, CLR_CONSECUTIVE); _lbl_s(legend, " Consecutivo  ", CLR_TEXT_DIM)
-        _dot(legend, CLR_REPEATED);    _lbl_s(legend, " Repetido de anterior", CLR_TEXT_DIM)
+        _dot(legend, CLR_PRIME);           _lbl_s(legend, " Primo  ", CLR_TEXT_DIM)
+        _dot(legend, CLR_COMPOSITE);       _lbl_s(legend, " Compuesto  ", CLR_TEXT_DIM)
+        _dot(legend, "#fca5a5");           _lbl_s(legend, " Consecutivo  ", CLR_TEXT_DIM)
+        _dot(legend, "#fcd34d");           _lbl_s(legend, " Repetido de anterior  ", CLR_TEXT_DIM)
+        _dot(legend, "#fdba74");           _lbl_s(legend, " Consec. + Repetido", CLR_TEXT_DIM)
 
         # ── Tabla Treeview centrada ──
         body = ctk.CTkFrame(self.parent, fg_color=CLR_FRAME, corner_radius=10)
@@ -69,15 +76,19 @@ class TabHistory:
         _scx.pack(side="bottom", fill="x")
         self._tree.pack(fill="both", expand=True, padx=12, pady=12)
 
-        # Tags de fila (por prioridad: both > consec > repeat > normal)
-        self._tree.tag_configure("row_even",   background=CLR_CARD)
-        self._tree.tag_configure("row_odd",    background=CLR_CARD2)
-        self._tree.tag_configure("consec_even", background=CLR_CARD, foreground=CLR_CONSECUTIVE)
-        self._tree.tag_configure("consec_odd",  background=CLR_CARD2, foreground=CLR_CONSECUTIVE)
-        self._tree.tag_configure("repeat_even", background=CLR_CARD, foreground=CLR_REPEATED)
-        self._tree.tag_configure("repeat_odd",  background=CLR_CARD2, foreground=CLR_REPEATED)
-        self._tree.tag_configure("both_even",   background=CLR_CARD, foreground="#f97316")
-        self._tree.tag_configure("both_odd",    background=CLR_CARD2, foreground="#f97316")
+        # Tags de fila (fondo coloreado por tipo)
+        # normal
+        self._tree.tag_configure("row_even",    background=CLR_CARD,    foreground=CLR_TEXT)
+        self._tree.tag_configure("row_odd",     background=CLR_CARD2,   foreground=CLR_TEXT)
+        # consecutivo → fondo rojo oscuro
+        self._tree.tag_configure("consec_even", background="#3a1010",   foreground="#fca5a5")
+        self._tree.tag_configure("consec_odd",  background="#451414",   foreground="#fca5a5")
+        # repetido → fondo ámbar oscuro
+        self._tree.tag_configure("repeat_even", background="#332200",   foreground="#fcd34d")
+        self._tree.tag_configure("repeat_odd",  background="#3d2900",   foreground="#fcd34d")
+        # ambos → fondo naranja oscuro
+        self._tree.tag_configure("both_even",   background="#3a1f00",   foreground="#fdba74")
+        self._tree.tag_configure("both_odd",    background="#472600",   foreground="#fdba74")
 
     # ──────────────────────── Carga de datos ─────────────────────────────
     def refresh(self):
@@ -100,10 +111,8 @@ class TabHistory:
         pos = lot["positions"]
 
         # Configurar columnas dinámicamente
-        cols = ["_num", "_fecha"] + [f"_b{i}" for i in range(pos)] + ["_notas"]
+        cols = ["_fecha"] + [f"_b{i}" for i in range(pos)] + ["_notas"]
         self._tree["columns"] = cols
-        self._tree.heading("_num",   text="#",     anchor="center")
-        self._tree.column( "_num",   width=45,  anchor="center", stretch=False, minwidth=36)
         self._tree.heading("_fecha", text="Fecha", anchor="center")
         self._tree.column( "_fecha", width=110, anchor="center", stretch=False, minwidth=90)
         for i in range(pos):
@@ -131,10 +140,67 @@ class TabHistory:
             else:
                 row_tag = f"row_{parity}"
 
-            values = ([row_idx + 1, draw["draw_date"]]
+            values = ([draw["draw_date"]]
                       + list(draw["numbers"])
                       + [", ".join(notes)])
             self._tree.insert("", "end", values=values, tags=(row_tag,))
+
+    # ──────────────────────── Ejemplos de muestra ────────────────────────
+    def _load_samples(self):
+        if not self.state.has_lottery:
+            messagebox.showwarning("Sin lotería",
+                                   "Selecciona una lotería activa primero.")
+            return
+
+        lot = self.state.lottery
+        pos = lot["positions"]
+        mn, mx = lot["min_number"], lot["max_number"]
+
+        if mx - mn + 1 < pos:
+            messagebox.showerror("Error",
+                                  "El rango de la lotería es demasiado pequeño "
+                                  "para generar ejemplos.")
+            return
+
+        ok = messagebox.askyesno(
+            "Cargar ejemplos",
+            f"Se agregarán hasta 50 sorteos de muestra a '{lot['name']}'.\n"
+            "Las combinaciones ya existentes serán omitidas.\n\n¿Continuar?"
+        )
+        if not ok:
+            return
+
+        from datetime import date, timedelta
+        # Distribuir 50 fechas desde 2010-01-01 hasta 2025-12-01
+        start = date(2010, 1, 1)
+        end   = date(2025, 12, 1)
+        span  = (end - start).days
+        dates = [
+            (start + timedelta(days=round(i * span / 49))).strftime("%Y-%m-%d")
+            for i in range(50)
+        ]
+
+        inserted = 0
+        attempts = 0
+        seen: set[tuple] = set()
+
+        while inserted < 50 and attempts < 1000:
+            attempts += 1
+            nums = sorted(random.sample(range(mn, mx + 1), pos))
+            key  = tuple(nums)
+            if key in seen:
+                continue
+            seen.add(key)
+            if self.state.db.draw_exists(self.state.lottery_id, nums):
+                continue
+            self.state.db.add_draw(
+                self.state.lottery_id, nums, dates[min(inserted, 49)])
+            inserted += 1
+
+        messagebox.showinfo(
+            "Ejemplos cargados",
+            f"Se insertaron {inserted} sorteo(s) de muestra en '{lot['name']}'.")
+        self.refresh()
 
 
 # ─── helpers ────────────────────────────────────────────────────────────────
