@@ -390,9 +390,10 @@ class TabGenerator:
         sorted_by_score = sorted(global_score.items(),
                                  key=lambda x: x[1], reverse=True)
         global_pool = [n for n, _ in sorted_by_score[:keep_n]]
-        # Guardar también el orden de score para el display
-        self._global_pool_ranked = global_pool[:]          # ya ordenado por score
+        # Guardar ordenado numéricamente para display y compartir
+        self._global_pool_ranked = sorted(global_pool)     # ordenado de menor a mayor
         global_pool_sorted = sorted(global_pool)           # ordenado numéricamente
+        self.state.ai_reduction = global_pool_sorted[:]    # compartir con checker
 
         # El generador espera list[list[int]] (una por posición); usamos el mismo pool
         self._reduced_universe = [global_pool_sorted[:] for _ in range(pos)]
@@ -474,7 +475,7 @@ class TabGenerator:
                         if self.state.has_lottery else len(pool_ranked))
         t.insert("end",
                   f"  Top {len(pool_ranked)} de {pool_n_total} números — "
-                  f"ordenados por score (violeta=primo, naranja=compuesto):\n\n",
+                  f"ordenados de menor a mayor (violeta=primo, naranja=compuesto):\n\n",
                   "header")
         # Mostrar en filas de 15 números
         ROW = 15
@@ -611,6 +612,11 @@ class TabGenerator:
         self._reduced_universe = sess["universe"]
         self._global_pool_ranked = None   # sesión guardada no tiene orden de score
         self._generated = sess["combinations"]
+        # Compartir reducción con checker (unión de todas las posiciones, ordenada)
+        pool_set: set[int] = set()
+        for nums in self._reduced_universe:
+            pool_set.update(nums)
+        self.state.ai_reduction = sorted(pool_set)
         self._model_info.configure(
             text=f"✅  Sesión cargada: {sess['name']}",
             text_color="#22c55e")

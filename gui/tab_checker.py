@@ -18,13 +18,12 @@ from config import (
     CLR_TEXT, CLR_TEXT_MID, CLR_TEXT_DIM,
     CLR_ACCENT, CLR_BORDER,
     CLR_PRIME, CLR_COMPOSITE, CLR_MATCH, CLR_BTN_PRIMARY,
-    MIN_SIMILAR_MATCHES, REDUCTION_DISPLAY_PCT,
+    MIN_SIMILAR_MATCHES,
     get_active_palette,
 )
 from utils.math_utils import is_prime
 from utils.analyzer import (
     find_exact_match, find_similar, predict_higher_lower,
-    score_numbers,
 )
 
 # ── Visual constants (grid) ───────────────────────────────────────────────────
@@ -337,31 +336,12 @@ class TabChecker:
     def _calc_ai(self):
         if not self.state.has_lottery:
             return
-        lot       = self.state.lottery
-        draws     = self.state.db.get_draws(self.state.lottery_id)
-        draws_num = [d["numbers"] for d in draws]
-        if not draws_num:
-            self._ai_var.set("Sin datos suficientes para calcular la reducción IA.")
-            return
-
-        scores_per_pos = score_numbers(
-            draws_num, lot["positions"], lot["min_number"], lot["max_number"]
-        )
-
-        # Puntuación global: suma de scores de todas las posiciones por número
-        pool = range(lot["min_number"], lot["max_number"] + 1)
-        global_score = {
-            n: sum(pos.get(n, 0) for pos in scores_per_pos)
-            for n in pool
-        }
-
-        # Mantener solo el top REDUCTION_DISPLAY_PCT del universo
-        pool_size  = lot["max_number"] - lot["min_number"] + 1
-        keep_count = max(lot["positions"] + 1, round(pool_size * REDUCTION_DISPLAY_PCT))
-        top_nums   = sorted(global_score,
-                            key=lambda n: global_score[n], reverse=True)[:keep_count]
-        flat = sorted(top_nums)
-        self._ai_var.set("  ".join(str(n) for n in flat))
+        # Usar la reducción calculada por el Generador IA (compartida via AppState)
+        if self.state.ai_reduction:
+            flat = sorted(self.state.ai_reduction)
+            self._ai_var.set("  ".join(str(n) for n in flat))
+        else:
+            self._ai_var.set("Entrena el modelo en Generador IA y calcula la reducción primero.")
 
     def _clear(self):
         for e in self._entries:
@@ -419,7 +399,12 @@ class TabChecker:
         self._clear_results()
         self._exact_var.set("")
         self._count_lbl.configure(text="")
-        self._ai_var.set("")
+        # Mostrar reducción compartida desde Generador IA si existe
+        if self.state.ai_reduction:
+            flat = sorted(self.state.ai_reduction)
+            self._ai_var.set("  ".join(str(n) for n in flat))
+        else:
+            self._ai_var.set("")
 
 
 # ── Module-level grid helpers ─────────────────────────────────────────────────
