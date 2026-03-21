@@ -12,27 +12,33 @@ from config import (
     CLR_ACCENT, CLR_ACCENT2,
     CLR_TEXT, CLR_TEXT_MID, CLR_TEXT_DIM,
     CLR_BTN_PRIMARY, CLR_BTN_HOVER, CLR_BTN_DANGER,
+    get_active_palette,
 )
 
 
 # ─── Treeview style ──────────────────────────────────────────────────────────
 def apply_treeview_style(style_name: str = "Nova.Treeview",
                          row_height: int = 28) -> None:
-    """Apply Nova dark styling to a ttk Treeview."""
+    """Apply Nova styling to a ttk Treeview using the active palette."""
+    pal = get_active_palette()
+    card_bg = pal["CARD"]
+    card2_bg = pal["CARD2"]
+    text_clr = pal["TEXT"]
+
     st = ttk.Style()
     st.theme_use("clam")
 
     st.configure(style_name,
-                 background=CLR_CARD,
-                 foreground=CLR_TEXT,
-                 fieldbackground=CLR_CARD,
+                 background=card_bg,
+                 foreground=text_clr,
+                 fieldbackground=card_bg,
                  rowheight=row_height,
                  borderwidth=0,
                  relief="flat",
                  font=("Segoe UI", 10))
 
     st.configure(f"{style_name}.Heading",
-                 background=CLR_CARD2,
+                 background=card2_bg,
                  foreground=CLR_ACCENT,
                  borderwidth=0,
                  relief="flat",
@@ -43,7 +49,7 @@ def apply_treeview_style(style_name: str = "Nova.Treeview",
            foreground=[("selected", "#0d0d10")])
 
     st.map(f"{style_name}.Heading",
-           background=[("active", CLR_CARD2)],
+           background=[("active", card2_bg)],
            foreground=[("active", CLR_ACCENT)])
 
 

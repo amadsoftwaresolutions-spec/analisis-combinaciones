@@ -9,7 +9,7 @@ import customtkinter as ctk
 
 from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_ACCENT,
                     CLR_TEXT, CLR_TEXT_DIM, CLR_BTN_PRIMARY, CLR_BTN_DANGER,
-                    CLR_PRIME, CLR_COMPOSITE)
+                    CLR_PRIME, CLR_COMPOSITE, get_active_palette)
 from utils.math_utils import is_prime
 
 
@@ -289,6 +289,15 @@ class TabData:
         for iid in self._tree.get_children():
             self._tree.delete(iid)
         self._item_to_id.clear()
+
+        # Re-apply Treeview style and tag colours for current theme
+        from gui.theme import apply_treeview_style
+        apply_treeview_style("Nova.Treeview", row_height=26)
+        pal = get_active_palette()
+        self._tree.tag_configure("row_even", background=pal["CARD"],
+                                  foreground=pal["TEXT"])
+        self._tree.tag_configure("row_odd",  background=pal["CARD2"],
+                                  foreground=pal["TEXT"])
 
         if not self.state.has_lottery:
             return

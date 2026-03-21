@@ -23,7 +23,7 @@ from config import (
 )
 from utils.math_utils import is_prime
 from utils.analyzer import (
-    find_exact_match, find_similar, predict_higher_lower,
+    find_exact_match, find_similar, predict_higher_lower, law_of_thirds,
 )
 
 # ── Visual constants (grid) ───────────────────────────────────────────────────
@@ -234,7 +234,9 @@ class TabChecker:
             lbl.place(relx=0.5, rely=0.5, anchor="center")
             self._dir_labels.append(lbl)
 
-        # ── Sección 4: NÚMEROS A EVITAR ──────────────────────────────────────
+        # ── Sección 4: NÚMEROS A EVITAR (auto-poblados por Ley del Tercio) ──
+        thirds_data = (law_of_thirds(draws_num, n, lot["min_number"], lot["max_number"])
+                       if draws_num else [])
         row4 = _section_cells(self._grid_frame, "NÚMEROS A EVITAR", n)
         for i, cell in enumerate(row4):
             e = tk.Entry(
@@ -247,6 +249,10 @@ class TabChecker:
                 justify="center",
             )
             e.place(relx=0.5, rely=0.5, anchor="center")
+            # Auto-fill from law of thirds
+            if i < len(thirds_data) and thirds_data[i]["avoid"]:
+                avoid_str = ",".join(str(n) for n in sorted(thirds_data[i]["avoid"]))
+                e.insert(0, avoid_str)
             self._avoid_entries.append(e)
 
         # ── Sección 5: REDUCCIÓN DE NÚMEROS GENERADA POR IA ─────────────────
@@ -397,6 +403,10 @@ class TabChecker:
     def refresh(self):
         self._rebuild_grid()
         self._clear_results()
+        # Re-apply Text tag colours for current theme
+        pal = get_active_palette()
+        self._results_text.tag_configure("row_even", background=pal["CARD"])
+        self._results_text.tag_configure("row_odd",  background=pal["CARD2"])
         self._exact_var.set("")
         self._count_lbl.configure(text="")
         # Mostrar reducción compartida desde Generador IA si existe

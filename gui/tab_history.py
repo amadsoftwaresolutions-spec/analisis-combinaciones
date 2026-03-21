@@ -12,7 +12,7 @@ import customtkinter as ctk
 
 from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_HOVER, CLR_TEXT, CLR_TEXT_DIM,
                     CLR_PRIME, CLR_COMPOSITE, CLR_CONSECUTIVE, CLR_REPEATED,
-                    HISTORY_DISPLAY)
+                    HISTORY_DISPLAY, get_active_palette)
 from utils.math_utils import is_prime
 from utils.analyzer import mark_history
 
@@ -94,6 +94,13 @@ class TabHistory:
     def refresh(self):
         for iid in self._tree.get_children():
             self._tree.delete(iid)
+
+        # Re-apply Treeview style and tag colours for current theme
+        from gui.theme import apply_treeview_style
+        apply_treeview_style("Nova.Treeview", row_height=28)
+        pal = get_active_palette()
+        self._tree.tag_configure("row_even",    background=pal["CARD"],    foreground=pal["TEXT"])
+        self._tree.tag_configure("row_odd",     background=pal["CARD2"],   foreground=pal["TEXT"])
 
         if not self.state.has_lottery:
             return

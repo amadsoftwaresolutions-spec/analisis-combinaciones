@@ -105,6 +105,7 @@ class LotteryAnalyzerApp:
         self._pages: dict[str, ctk.CTkFrame] = {}
         self._tab_instances: dict[str, object] = {}
         self._ind_rect: int | None = None
+        self._lottery_map: dict[str, int] = {}
         self._build_root()
         self._build_topbar()
         self._build_navstrip()
@@ -174,6 +175,7 @@ class LotteryAnalyzerApp:
         sel_row.pack(pady=(3, 8))
 
         self._lottery_var = tk.StringVar(value="— Seleccionar —")
+        self._lottery_var.trace_add("write", self._on_lottery_var_write)
         self._lottery_combo = ctk.CTkComboBox(
             sel_row,
             variable=self._lottery_var,
@@ -454,9 +456,24 @@ class LotteryAnalyzerApp:
             for n, lid in self._lottery_map.items():
                 if lid == self.state.lottery_id:
                     self._lottery_var.set(n)
+                    # Re-fetch lottery data in case it was edited
+                    self.state.set_lottery(lid)
                     return
         self._lottery_var.set(names[0])
         self._on_lottery_selected(names[0])
+
+    def _on_lottery_var_write(self, *_args):
+        """Trace callback — catches dropdown changes even if command cb fails."""
+        choice = self._lottery_var.get()
+        lid = self._lottery_map.get(choice)
+        if lid and lid != self.state.lottery_id:
+            self.state.set_lottery(lid)
+            lot = self.state.lottery
+            if lot:
+                self.set_status(
+                    f"Lotería activa: {lot['name']}  ·  "
+                    f"{lot['positions']} posiciones  ·  "
+                    f"{lot['min_number']}–{lot['max_number']}")
 
     def _on_lottery_selected(self, choice: str):
         lid = self._lottery_map.get(choice)
@@ -469,9 +486,9 @@ class LotteryAnalyzerApp:
                 f"{lot['min_number']}–{lot['max_number']}")
 
     def _on_lottery_changed(self):
-        tab = self._tab_instances.get(self._current_page)
-        if tab and hasattr(tab, "refresh"):
-            tab.refresh()
+        for tab in self._tab_instances.values():
+            if hasattr(tab, "refresh"):
+                tab.refresh()
 
     # ── Theme toggle ──────────────────────────────────────────────────────────
     def _toggle_theme(self):
@@ -485,10 +502,9 @@ class LotteryAnalyzerApp:
         old_p = THEME_LIGHT if self._is_dark else THEME_DARK
         bg_map = {old_p[k]: palette[k] for k in palette}
         self._retheme_widgets(self.root, bg_map, palette)
-        # Re-render analysis tab if currently visible (rebuilds with new palette colors)
-        if self._current_page == "analysis":
-            tab = self._tab_instances.get("analysis")
-            if tab and hasattr(tab, "refresh"):
+        # Re-render all tabs so Treeview/Text tags pick up new palette
+        for tab in self._tab_instances.values():
+            if hasattr(tab, "refresh"):
                 tab.refresh()
         # Re-apply nav label colours using the updated palette
         for k, lbl in self._nav_labels.items():

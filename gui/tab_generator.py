@@ -12,7 +12,8 @@ import customtkinter as ctk
 from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_TEXT, CLR_TEXT_DIM,
                     CLR_PRIME, CLR_COMPOSITE, CLR_BTN_PRIMARY, CLR_ACCENT, CLR_TEXT,
                     CLR_BTN_DANGER, MIN_GENERATE, MAX_GENERATE,
-                    RECENT_DRAWS_ANALYSIS, MIN_DRAWS_FOR_ML)
+                    RECENT_DRAWS_ANALYSIS, MIN_DRAWS_FOR_ML,
+                    get_active_palette)
 from utils.math_utils import (is_prime, total_combinations,
                                format_large_number)
 from utils.analyzer import (score_numbers, generate_combinations)
@@ -349,6 +350,12 @@ class TabGenerator:
     def _calculate_reduction(self):
         if not self.state.has_lottery:
             messagebox.showwarning("Sin lotería", "Selecciona una lotería primero.")
+            return
+        if not self._predictor or not self._predictor.is_trained:
+            messagebox.showwarning(
+                "Modelo no entrenado",
+                "Primero entrena el modelo IA con '⚡ Entrenar Modelo IA'\n"
+                "antes de calcular la reducción.")
             return
         draws = self._get_draws()
         if not draws:
@@ -687,6 +694,16 @@ class TabGenerator:
         t.configure(state="normal")
         t.delete("1.0", "end")
         t.configure(state="disabled")
+        # Re-apply tag & Treeview colours for current theme
+        pal = get_active_palette()
+        self._result_text.tag_configure("row_even", background=pal["CARD"])
+        self._result_text.tag_configure("row_odd",  background=pal["CARD2"])
+        from gui.theme import apply_treeview_style
+        apply_treeview_style("Nova.Treeview", row_height=24)
+        self._sess_tree.tag_configure("row_even", background=pal["CARD"],
+                                       foreground=pal["TEXT"])
+        self._sess_tree.tag_configure("row_odd",  background=pal["CARD2"],
+                                       foreground=pal["TEXT"])
         self._load_session_list()
 
 
