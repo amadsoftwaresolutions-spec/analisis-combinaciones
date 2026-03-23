@@ -23,7 +23,8 @@ from config import (
 )
 from utils.math_utils import is_prime
 from utils.analyzer import (
-    find_exact_match, find_similar, predict_higher_lower, law_of_thirds,
+    find_exact_match, find_similar, predict_higher_lower, numbers_to_avoid,
+    law_of_thirds,
 )
 
 # ── Visual constants (grid) ───────────────────────────────────────────────────
@@ -234,9 +235,9 @@ class TabChecker:
             lbl.place(relx=0.5, rely=0.5, anchor="center")
             self._dir_labels.append(lbl)
 
-        # ── Sección 4: NÚMEROS A EVITAR (auto-poblados por Ley del Tercio) ──
-        thirds_data = (law_of_thirds(draws_num, n, lot["min_number"], lot["max_number"])
-                       if draws_num else [])
+        # ── Sección 4: NÚMEROS A EVITAR (por dirección esperada) ──────────
+        avoid_data = (numbers_to_avoid(hl, lot["min_number"], lot["max_number"])
+                      if hl else [])
         row4 = _section_cells(self._grid_frame, "NÚMEROS A EVITAR", n)
         for i, cell in enumerate(row4):
             e = tk.Entry(
@@ -249,9 +250,9 @@ class TabChecker:
                 justify="center",
             )
             e.place(relx=0.5, rely=0.5, anchor="center")
-            # Auto-fill from law of thirds
-            if i < len(thirds_data) and thirds_data[i]["avoid"]:
-                avoid_str = ",".join(str(n) for n in sorted(thirds_data[i]["avoid"]))
+            # Auto-fill: MAYOR → evitar ≤ último, MENOR → evitar ≥ último
+            if i < len(avoid_data) and avoid_data[i]:
+                avoid_str = ",".join(str(n) for n in avoid_data[i])
                 e.insert(0, avoid_str)
             self._avoid_entries.append(e)
 
@@ -398,8 +399,15 @@ class TabChecker:
         t.configure(state="disabled")
 
     # ═══════════════════════════════════════════════════════════════════════════
-    #  Refresh
+    #  Refresh / on_tab_enter
     # ═══════════════════════════════════════════════════════════════════════════
+    def on_tab_enter(self):
+        """Called when switching TO this tab — preserve user input."""
+        # Solo actualizar la reducción IA sin reconstruir la grilla
+        if self.state.ai_reduction:
+            flat = sorted(self.state.ai_reduction)
+            self._ai_var.set("  ".join(str(n) for n in flat))
+
     def refresh(self):
         self._rebuild_grid()
         self._clear_results()

@@ -295,6 +295,16 @@ class TabGenerator:
 
     # ──────────────────────── Acciones ───────────────────────────────────
     def _get_draws(self):
+        """Últimos N sorteos para análisis estadístico y reducción."""
+        if not self.state.has_lottery:
+            return None
+        all_draws = self.state.db.get_all_numbers(self.state.lottery_id)
+        if not all_draws:
+            return None
+        return all_draws[-RECENT_DRAWS_ANALYSIS:]
+
+    def _get_all_draws(self):
+        """Todos los sorteos históricos para entrenamiento ML."""
         if not self.state.has_lottery:
             return None
         return self.state.db.get_all_numbers(self.state.lottery_id)
@@ -303,12 +313,12 @@ class TabGenerator:
         if not self.state.has_lottery:
             messagebox.showwarning("Sin lotería", "Selecciona una lotería primero.")
             return
-        draws = self._get_draws()
-        if not draws or len(draws) < MIN_DRAWS_FOR_ML:
+        all_draws = self._get_all_draws()
+        if not all_draws or len(all_draws) < MIN_DRAWS_FOR_ML:
             messagebox.showwarning(
                 "Datos insuficientes",
                 f"Se necesitan al menos {MIN_DRAWS_FOR_ML} sorteos para entrenar el modelo IA.\n"
-                f"Actualmente hay {len(draws) if draws else 0} sorteos.")
+                f"Actualmente hay {len(all_draws) if all_draws else 0} sorteos.")
             return
 
         lot = self.state.lottery
@@ -328,10 +338,10 @@ class TabGenerator:
 
         def train_thread():
             try:
-                success = self._predictor.train(draws, progress_callback=progress_cb)
+                success = self._predictor.train(all_draws, progress_callback=progress_cb)
                 if success:
                     self._model_info.configure(
-                        text=f"✅  Modelo entrenado  ({len(draws)} sorteos)",
+                        text=f"✅  Modelo entrenado  ({len(all_draws)} sorteos)",
                         text_color="#22c55e")
                     self._progress_lbl.configure(text="Entrenamiento completado.")
                 else:

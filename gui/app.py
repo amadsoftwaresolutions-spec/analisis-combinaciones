@@ -267,11 +267,13 @@ class LotteryAnalyzerApp:
 
         def on_enter(e, k=key):
             if k != self._current_page:
-                lbl.configure(fg=CLR_TEXT_MID)
+                p = THEME_DARK if self._is_dark else THEME_LIGHT
+                lbl.configure(fg=p["TEXT_MID"])
 
         def on_leave(e, k=key):
             if k != self._current_page:
-                lbl.configure(fg=CLR_TEXT_DIM)
+                p = THEME_DARK if self._is_dark else THEME_LIGHT
+                lbl.configure(fg=p["TEXT_DIM"])
 
         def on_click(e, k=key):
             self._go_to(k)
@@ -292,9 +294,10 @@ class LotteryAnalyzerApp:
 
         old_key = self._current_page
 
-        # Update label colours
+        # Update label colours using active palette
+        pal = THEME_DARK if self._is_dark else THEME_LIGHT
         for k, lbl in self._nav_labels.items():
-            lbl.configure(fg=CLR_TEXT if k == key else CLR_TEXT_DIM)
+            lbl.configure(fg=pal["TEXT"] if k == key else pal["TEXT_DIM"])
 
         # Slide indicator to new position
         self.root.update_idletasks()
@@ -506,10 +509,23 @@ class LotteryAnalyzerApp:
         for tab in self._tab_instances.values():
             if hasattr(tab, "refresh"):
                 tab.refresh()
-        # Re-apply nav label colours using the updated palette
+        # Re-apply nav label + frame colours using the updated palette
         for k, lbl in self._nav_labels.items():
-            lbl.configure(fg=palette["TEXT"] if k == self._current_page
-                          else palette["TEXT_DIM"])
+            lbl.configure(
+                fg=palette["TEXT"] if k == self._current_page else palette["TEXT_DIM"],
+                bg=palette["NAV"],
+            )
+        for frm in self._nav_frames.values():
+            frm.configure(bg=palette["NAV"])
+
+        # Nav indicator canvas
+        self._ind_canvas.configure(bg=palette["NAV"])
+
+        # Theme button
+        self._theme_btn.configure(fg=palette["TEXT_DIM"], bg=palette["HDR"])
+
+        # Pulse dot canvas + status bar label
+        self._pulse_cv.configure(bg=palette["BAR"])
 
     # ── Internal helper ───────────────────────────────────────────────────────
     @staticmethod

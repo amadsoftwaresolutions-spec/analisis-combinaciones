@@ -115,12 +115,15 @@ def law_of_thirds(draws: list[list[int]], positions: int,
     result = []
     for pos in range(positions):
         counts = [0, 0, 0]
+        # Rastrear qué números específicos cayeron en cada tercio para esta posición
+        nums_in_third: list[set[int]] = [set(), set(), set()]
         for draw in recent:
             if pos < len(draw):
                 n = draw[pos]
                 for idx, tr in enumerate(thirds_ranges):
                     if n in tr:
                         counts[idx] += 1
+                        nums_in_third[idx].add(n)
                         break
 
         thirds_info = []
@@ -135,7 +138,8 @@ def law_of_thirds(draws: list[list[int]], positions: int,
                 "hot": hot,
             })
             if hot:
-                avoid.extend(list(tr))
+                # Solo evitar los números que realmente aparecieron en esta posición
+                avoid.extend(sorted(nums_in_third[idx]))
 
         result.append({"thirds": thirds_info, "avoid": avoid})
     return result
@@ -182,9 +186,10 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
         down_pct = down / total
         last_val = recent[-1][pos] if pos < len(recent[-1]) else None
 
-        if up_pct >= HL_CONFIDENCE:
+        # Siempre asigna dirección: gana la que tenga más ocurrencias
+        if up > down:
             pred = "MAYOR ▲"
-        elif down_pct >= HL_CONFIDENCE:
+        elif down > up:
             pred = "MENOR ▼"
         else:
             pred = "INDETERMINADO"
@@ -198,6 +203,32 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
             "down_count": down,
             "equal_count": equal,
         })
+    return result
+
+
+def numbers_to_avoid(hl_data: list[dict], min_num: int, max_num: int) -> list[list[int]]:
+    """
+    Genera los números a evitar por posición basándose en la dirección esperada.
+
+    Lógica simple:
+      - Si dirección = MAYOR → evitar todos los números ≤ último (se espera uno más alto)
+      - Si dirección = MENOR → evitar todos los números ≥ último (se espera uno más bajo)
+      - Si INDETERMINADO/SIN DATOS → lista vacía
+    """
+    result = []
+    for data in hl_data:
+        last = data.get("last")
+        pred = data.get("prediction", "")
+        if last is None:
+            result.append([])
+            continue
+
+        if "MAYOR" in pred:
+            result.append(list(range(min_num, last + 1)))
+        elif "MENOR" in pred:
+            result.append(list(range(last, max_num + 1)))
+        else:
+            result.append([])
     return result
 
 

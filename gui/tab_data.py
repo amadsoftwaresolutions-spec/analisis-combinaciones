@@ -246,8 +246,12 @@ class TabData:
         if not path:
             return
         lot = self.state.lottery
-        errors = []
-        draws_to_import = []
+
+        # ── Pre-escaneo: detectar rango real del CSV ──────────────────────
+        csv_min = None
+        csv_max = None
+        parse_errors = []
+        all_parsed: list[tuple[str, list[int]]] = []
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
                 for line_no, line in enumerate(f, 1):
@@ -256,22 +260,70 @@ class TabData:
                         continue
                     parts = [p.strip() for p in line.split(",")]
                     if len(parts) < lot["positions"] + 1:
-                        errors.append(f"Línea {line_no}: faltan columnas.")
+                        parse_errors.append(f"Línea {line_no}: faltan columnas.")
                         continue
                     date = parts[0]
                     try:
                         numbers = [int(p) for p in parts[1: lot["positions"] + 1]]
                     except ValueError:
-                        errors.append(f"Línea {line_no}: número inválido.")
+                        parse_errors.append(f"Línea {line_no}: número inválido.")
                         continue
-                    if any(not (lot["min_number"] <= n <= lot["max_number"])
-                           for n in numbers):
-                        errors.append(f"Línea {line_no}: número fuera de rango.")
-                        continue
-                    draws_to_import.append((date, numbers))
+                    all_parsed.append((date, numbers))
+                    for n in numbers:
+                        if csv_min is None or n < csv_min:
+                            csv_min = n
+                        if csv_max is None or n > csv_max:
+                            csv_max = n
         except OSError as exc:
             messagebox.showerror("Error", f"No se pudo leer el archivo: {exc}")
             return
+
+        if not all_parsed:
+            messagebox.showwarning("Sin datos",
+                                    "No se encontraron líneas válidas en el archivo.")
+            return
+
+        # ── Si el rango del CSV excede el de la lotería, ofrecer ajustar ──
+        need_adjust = False
+        new_min = lot["min_number"]
+        new_max = lot["max_number"]
+
+        if csv_min is not None and csv_min < lot["min_number"]:
+            need_adjust = True
+            new_min = csv_min
+        if csv_max is not None and csv_max > lot["max_number"]:
+            need_adjust = True
+            new_max = csv_max
+
+        if need_adjust:
+            ok = messagebox.askyesno(
+                "Rango diferente detectado",
+                f"El archivo contiene números en el rango {csv_min}–{csv_max},\n"
+                f"pero la lotería '{lot['name']}' está configurada como "
+                f"{lot['min_number']}–{lot['max_number']}.\n\n"
+                f"¿Deseas ajustar el rango de la lotería a {new_min}–{new_max}\n"
+                f"para importar todos los sorteos?"
+            )
+            if ok:
+                self.state.db.update_lottery(
+                    self.state.lottery_id, lot["name"],
+                    lot["positions"], new_min, new_max)
+                # Refrescar datos de la lotería activa
+                lot = self.state.db.get_lottery(self.state.lottery_id)
+                self.state.lottery = lot
+
+        # ── Filtrar con el rango (posiblemente actualizado) e importar ────
+        errors = list(parse_errors)
+        draws_to_import = []
+        for date, numbers in all_parsed:
+            if any(not (lot["min_number"] <= n <= lot["max_number"])
+                   for n in numbers):
+                oob = [n for n in numbers
+                       if not (lot["min_number"] <= n <= lot["max_number"])]
+                errors.append(f"Números {oob} fuera de rango "
+                              f"{lot['min_number']}–{lot['max_number']}.")
+                continue
+            draws_to_import.append((date, numbers))
 
         inserted = self.state.db.import_draws_from_list(
             self.state.lottery_id, draws_to_import)
