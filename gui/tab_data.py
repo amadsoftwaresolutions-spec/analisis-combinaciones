@@ -159,7 +159,10 @@ class TabData:
     def _next_entry(self, current_idx: int):
         nxt = current_idx + 1
         if nxt < len(self._entries):
-            self._entries[nxt].focus_set()
+            try:
+                self._entries[nxt].focus_set()
+            except Exception:
+                pass
 
     def _on_entry_change(self, _):
         """Colorea los campos de entrada según primo/compuesto en tiempo real."""
@@ -377,6 +380,16 @@ class TabData:
             self._item_to_id[iid] = draw["id"]
 
     # ──────────────────────── Actualización ─────────────────────────────
+    def retheme(self):
+        """Re-apply visual styles for current theme without resetting data."""
+        from gui.theme import apply_treeview_style
+        apply_treeview_style("Nova.Treeview", row_height=26)
+        pal = get_active_palette()
+        self._tree.tag_configure("row_even", background=pal["CARD"],
+                                  foreground=pal["TEXT"])
+        self._tree.tag_configure("row_odd",  background=pal["CARD2"],
+                                  foreground=pal["TEXT"])
+
     def refresh(self):
         self._build_entries()
         self._load_table()

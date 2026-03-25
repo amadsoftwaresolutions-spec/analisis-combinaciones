@@ -177,8 +177,9 @@ class TabChecker:
         n         = lot["positions"]
         draws     = self.state.db.get_draws(self.state.lottery_id)
         last_draw = draws[0]["numbers"] if draws else []
-        draws_num = [d["numbers"] for d in draws]
-        hl        = predict_higher_lower(draws_num, n) if draws_num else []
+        draws_num = [d["numbers"] for d in reversed(draws)]   # ASC para predict
+        mn, mx    = lot["min_number"], lot["max_number"]
+        hl        = predict_higher_lower(draws_num, n, min_num=mn, max_num=mx) if draws_num else []
 
         p = get_active_palette()          # colours follow the active theme
         cell_bg  = p["GRID"]
@@ -235,9 +236,9 @@ class TabChecker:
             lbl.place(relx=0.5, rely=0.5, anchor="center")
             self._dir_labels.append(lbl)
 
-        # ── Sección 4: NÚMEROS A EVITAR (por dirección esperada) ──────────
-        avoid_data = (numbers_to_avoid(hl, lot["min_number"], lot["max_number"])
-                      if hl else [])
+        # ── Sección 4: NÚMEROS A EVITAR (ley del tercio) ───────────────
+        thirds_data = (law_of_thirds(draws_num, n, mn, mx)
+                       if draws_num else [])
         row4 = _section_cells(self._grid_frame, "NÚMEROS A EVITAR", n)
         for i, cell in enumerate(row4):
             e = tk.Entry(
@@ -250,9 +251,9 @@ class TabChecker:
                 justify="center",
             )
             e.place(relx=0.5, rely=0.5, anchor="center")
-            # Auto-fill: MAYOR → evitar ≤ último, MENOR → evitar ≥ último
-            if i < len(avoid_data) and avoid_data[i]:
-                avoid_str = ",".join(str(n) for n in avoid_data[i])
+            # Auto-fill con números a evitar de la ley del tercio
+            if i < len(thirds_data) and thirds_data[i]["avoid"]:
+                avoid_str = ",".join(str(n) for n in thirds_data[i]["avoid"])
                 e.insert(0, avoid_str)
             self._avoid_entries.append(e)
 
@@ -277,14 +278,20 @@ class TabChecker:
         ).place(relx=0.5, rely=0.5, anchor="center")
 
         if self._entries:
-            self._entries[0].focus_set()
+            try:
+                self._entries[0].focus_set()
+            except tk.TclError:
+                pass
 
     # ═══════════════════════════════════════════════════════════════════════════
     #  Entry helpers
     # ═══════════════════════════════════════════════════════════════════════════
     def _next_entry(self, idx: int):
         if idx + 1 < len(self._entries):
-            self._entries[idx + 1].focus_set()
+            try:
+                self._entries[idx + 1].focus_set()
+            except tk.TclError:
+                pass
         else:
             self._verify()
 
@@ -358,7 +365,10 @@ class TabChecker:
         self._count_lbl.configure(text="")
         self._clear_results()
         if self._entries:
-            self._entries[0].focus_set()
+            try:
+                self._entries[0].focus_set()
+            except tk.TclError:
+                pass
 
     # ═══════════════════════════════════════════════════════════════════════════
     #  Render similares
@@ -408,13 +418,16 @@ class TabChecker:
             flat = sorted(self.state.ai_reduction)
             self._ai_var.set("  ".join(str(n) for n in flat))
 
-    def refresh(self):
-        self._rebuild_grid()
-        self._clear_results()
-        # Re-apply Text tag colours for current theme
+    def retheme(self):
+        """Re-apply visual styles for current theme without resetting data."""
         pal = get_active_palette()
         self._results_text.tag_configure("row_even", background=pal["CARD"])
         self._results_text.tag_configure("row_odd",  background=pal["CARD2"])
+
+    def refresh(self):
+        self._rebuild_grid()
+        self._clear_results()
+        self.retheme()
         self._exact_var.set("")
         self._count_lbl.configure(text="")
         # Mostrar reducción compartida desde Generador IA si existe

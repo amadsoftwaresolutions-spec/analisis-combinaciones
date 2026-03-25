@@ -9,6 +9,9 @@ import os
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 os.environ.setdefault("TF_ENABLE_ONEDNN_OPTS", "0")
 
+import logging
+logging.getLogger("tensorflow").setLevel(logging.ERROR)
+
 # Asegurar que el directorio del proyecto esté en el path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

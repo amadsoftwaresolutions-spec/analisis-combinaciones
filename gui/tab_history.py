@@ -91,16 +91,19 @@ class TabHistory:
         self._tree.tag_configure("both_odd",    background="#472600",   foreground="#fdba74")
 
     # ──────────────────────── Carga de datos ─────────────────────────────
-    def refresh(self):
-        for iid in self._tree.get_children():
-            self._tree.delete(iid)
-
-        # Re-apply Treeview style and tag colours for current theme
+    def retheme(self):
+        """Re-apply visual styles for current theme without resetting data."""
         from gui.theme import apply_treeview_style
         apply_treeview_style("Nova.Treeview", row_height=28)
         pal = get_active_palette()
         self._tree.tag_configure("row_even",    background=pal["CARD"],    foreground=pal["TEXT"])
         self._tree.tag_configure("row_odd",     background=pal["CARD2"],   foreground=pal["TEXT"])
+
+    def refresh(self):
+        for iid in self._tree.get_children():
+            self._tree.delete(iid)
+
+        self.retheme()
 
         if not self.state.has_lottery:
             return

@@ -301,7 +301,9 @@ class TabAnalysis:
             f"↕️ Predictor Mayor / Menor  (vs. último sorteo, base {RECENT_DRAWS_ANALYSIS} sorteos)")
         pal = get_active_palette()
 
-        hl = predict_higher_lower(draws_raw, lot["positions"])
+        hl = predict_higher_lower(draws_raw, lot["positions"],
+                                    min_num=lot["min_number"],
+                                    max_num=lot["max_number"])
 
         wrapper = ctk.CTkFrame(frame, fg_color="transparent")
         wrapper.pack(fill="x", padx=16, pady=8)

@@ -681,6 +681,18 @@ class TabGenerator:
         """Al navegar a esta pestaña refresca solo la lista de sesiones."""
         self._load_session_list()
 
+    def retheme(self):
+        """Re-apply visual styles for current theme without resetting data."""
+        pal = get_active_palette()
+        self._result_text.tag_configure("row_even", background=pal["CARD"])
+        self._result_text.tag_configure("row_odd",  background=pal["CARD2"])
+        from gui.theme import apply_treeview_style
+        apply_treeview_style("Nova.Treeview", row_height=24)
+        self._sess_tree.tag_configure("row_even", background=pal["CARD"],
+                                       foreground=pal["TEXT"])
+        self._sess_tree.tag_configure("row_odd",  background=pal["CARD2"],
+                                       foreground=pal["TEXT"])
+
     def refresh(self):
         # Resetear cuando cambia la lotería
         self._predictor = None
@@ -704,16 +716,7 @@ class TabGenerator:
         t.configure(state="normal")
         t.delete("1.0", "end")
         t.configure(state="disabled")
-        # Re-apply tag & Treeview colours for current theme
-        pal = get_active_palette()
-        self._result_text.tag_configure("row_even", background=pal["CARD"])
-        self._result_text.tag_configure("row_odd",  background=pal["CARD2"])
-        from gui.theme import apply_treeview_style
-        apply_treeview_style("Nova.Treeview", row_height=24)
-        self._sess_tree.tag_configure("row_even", background=pal["CARD"],
-                                       foreground=pal["TEXT"])
-        self._sess_tree.tag_configure("row_odd",  background=pal["CARD2"],
-                                       foreground=pal["TEXT"])
+        self.retheme()
         self._load_session_list()
 
 

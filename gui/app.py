@@ -40,6 +40,7 @@ _CTK_CLR_ATTRS: dict[str, list[str]] = {
     "CTkSlider":          ["fg_color", "progress_color", "button_color"],
     "CTkProgressBar":     ["fg_color", "progress_color"],
     "CTkCheckBox":        ["fg_color", "hover_color", "text_color", "border_color"],
+    "CTkRadioButton":     ["fg_color", "hover_color", "text_color", "border_color"],
     "CTkOptionMenu":      ["fg_color", "text_color", "button_color", "dropdown_fg_color"],
     "CTkTabview":         ["fg_color"],
     "CTkSegmentedButton": ["fg_color", "text_color"],
@@ -505,9 +506,11 @@ class LotteryAnalyzerApp:
         old_p = THEME_LIGHT if self._is_dark else THEME_DARK
         bg_map = {old_p[k]: palette[k] for k in palette}
         self._retheme_widgets(self.root, bg_map, palette)
-        # Re-render all tabs so Treeview/Text tags pick up new palette
+        # Re-apply visual styles (colours/tags) without resetting tab data
         for tab in self._tab_instances.values():
-            if hasattr(tab, "refresh"):
+            if hasattr(tab, "retheme"):
+                tab.retheme()
+            elif hasattr(tab, "refresh"):
                 tab.refresh()
         # Re-apply nav label + frame colours using the updated palette
         for k, lbl in self._nav_labels.items():

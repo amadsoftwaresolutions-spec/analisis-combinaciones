@@ -6,7 +6,7 @@ import random
 from collections import defaultdict
 import numpy as np
 from config import (RECENT_DRAWS_ANALYSIS, REDUCTION_TARGET_PCT, MIN_SIMILAR_MATCHES,
-                    THIRDS_HOT_FACTOR, HL_CONFIDENCE)
+                    THIRDS_HOT_FACTOR)
 from utils.math_utils import is_prime, is_all_consecutive, is_all_prime, has_many_consecutive
 
 
@@ -99,7 +99,8 @@ def law_of_thirds(draws: list[list[int]], positions: int,
       - Se divide el rango en 3 tercios iguales.
       - Se cuentan las apariciones de cada tercio en los últimos `recent_n` sorteos.
       - Si un tercio excede el umbral (esperado × THIRDS_HOT_FACTOR), está "caliente"
-        y sus números deben evitarse en el siguiente sorteo.
+        y TODOS sus números deben evitarse (tiende a enfriarse).
+      - Si ningún tercio está caliente, se evita el que más apareció.
 
     Retorna una lista (una entrada por posición) con:
       {
@@ -115,21 +116,21 @@ def law_of_thirds(draws: list[list[int]], positions: int,
     result = []
     for pos in range(positions):
         counts = [0, 0, 0]
-        # Rastrear qué números específicos cayeron en cada tercio para esta posición
-        nums_in_third: list[set[int]] = [set(), set(), set()]
         for draw in recent:
             if pos < len(draw):
                 n = draw[pos]
                 for idx, tr in enumerate(thirds_ranges):
                     if n in tr:
                         counts[idx] += 1
-                        nums_in_third[idx].add(n)
                         break
 
         thirds_info = []
         avoid = []
+        any_hot = False
         for idx, (tr, cnt) in enumerate(zip(thirds_ranges, counts)):
             hot = cnt > expected * THIRDS_HOT_FACTOR
+            if hot:
+                any_hot = True
             thirds_info.append({
                 "range": tr,
                 "label": f"T{idx + 1} [{tr.start}–{tr.stop - 1}]",
@@ -137,11 +138,21 @@ def law_of_thirds(draws: list[list[int]], positions: int,
                 "expected": round(expected, 1),
                 "hot": hot,
             })
-            if hot:
-                # Solo evitar los números que realmente aparecieron en esta posición
-                avoid.extend(sorted(nums_in_third[idx]))
 
-        result.append({"thirds": thirds_info, "avoid": avoid})
+        if any_hot:
+            # Evitar todos los números de los tercios calientes
+            for info, tr in zip(thirds_info, thirds_ranges):
+                if info["hot"]:
+                    avoid.extend(list(tr))
+        else:
+            # Ninguno pasa el umbral → evitar el tercio con más apariciones
+            max_cnt = max(counts)
+            if max_cnt > expected:
+                hottest_idx = counts.index(max_cnt)
+                thirds_info[hottest_idx]["hot"] = True
+                avoid.extend(list(thirds_ranges[hottest_idx]))
+
+        result.append({"thirds": thirds_info, "avoid": sorted(avoid)})
     return result
 
 
@@ -150,59 +161,99 @@ def law_of_thirds(draws: list[list[int]], positions: int,
 # ═══════════════════════════════════════════════════════════════════════════
 
 def predict_higher_lower(draws: list[list[int]], positions: int,
-                          recent_n: int = RECENT_DRAWS_ANALYSIS) -> list[dict]:
+                          recent_n: int = RECENT_DRAWS_ANALYSIS,
+                          min_num: int | None = None,
+                          max_num: int | None = None) -> list[dict]:
     """
-    Para cada posición compara pares consecutivos de sorteos y predice si el
-    siguiente número será MAYOR, MENOR o INDETERMINADO respecto al último.
+    Para cada posición predice si el siguiente número será MAYOR o MENOR
+    usando el método de **Equilibrio de Números**: comparación del último
+    valor con el punto medio del rango.
+
+      - Último < punto_medio  →  MAYOR ▲  (tiende a subir hacia el centro)
+      - Último ≥ punto_medio  →  MENOR ▼  (tiende a bajar hacia el centro)
+
+    Adicionalmente calcula estadísticas de transiciones (subidas/bajadas)
+    como información complementaria.
 
     Retorna lista de dicts por posición:
       { 'last': int, 'up_pct': float, 'down_pct': float, 'prediction': str,
-        'up_count': int, 'down_count': int, 'equal_count': int }
+        'up_count': int, 'down_count': int, 'equal_count': int,
+        '_strength': float }
     """
     recent = draws[-recent_n:] if len(draws) > recent_n else draws
-    result = []
 
+    # Punto medio del rango para equilibrio
+    midpoint = None
+    if min_num is not None and max_num is not None:
+        midpoint = (min_num + max_num) / 2
+
+    result = []
     for pos in range(positions):
-        up = down = equal = 0
+        # ── Estadísticas de transiciones (informativas) ──────────────
+        raw_up = raw_down = raw_equal = 0
         for i in range(1, len(recent)):
             prev = recent[i - 1]
             curr = recent[i]
             if pos < len(prev) and pos < len(curr):
                 if curr[pos] > prev[pos]:
-                    up += 1
+                    raw_up += 1
                 elif curr[pos] < prev[pos]:
-                    down += 1
+                    raw_down += 1
                 else:
-                    equal += 1
+                    raw_equal += 1
 
-        total = up + down + equal
-        if total == 0:
+        total_raw = raw_up + raw_down + raw_equal
+        if total_raw == 0:
             result.append({"last": None, "up_pct": 0.0, "down_pct": 0.0,
                            "prediction": "SIN DATOS", "up_count": 0,
-                           "down_count": 0, "equal_count": 0})
+                           "down_count": 0, "equal_count": 0,
+                           "_strength": 0.0})
             continue
 
-        up_pct = up / total
-        down_pct = down / total
+        up_pct = raw_up / total_raw
+        down_pct = raw_down / total_raw
         last_val = recent[-1][pos] if pos < len(recent[-1]) else None
 
-        # Siempre asigna dirección: gana la que tenga más ocurrencias
-        if up > down:
-            pred = "MAYOR ▲"
-        elif down > up:
-            pred = "MENOR ▼"
+        # ── Predicción por Equilibrio (punto medio) ─────────────────
+        if midpoint is not None and last_val is not None:
+            if last_val < midpoint:
+                pred = "MAYOR ▲"
+                strength = (midpoint - last_val) / (midpoint - min_num) if midpoint > min_num else 0.0
+            elif last_val > midpoint:
+                pred = "MENOR ▼"
+                strength = (last_val - midpoint) / (max_num - midpoint) if max_num > midpoint else 0.0
+            else:
+                # Exactamente en el punto medio → usar transiciones como desempate
+                if raw_up > raw_down:
+                    pred = "MAYOR ▲"
+                elif raw_down > raw_up:
+                    pred = "MENOR ▼"
+                else:
+                    pred = "INDETERMINADO"
+                strength = 0.0
         else:
-            pred = "INDETERMINADO"
+            # Fallback sin rango: usar transiciones
+            if raw_up > raw_down:
+                pred = "MAYOR ▲"
+                strength = (raw_up - raw_down) / total_raw
+            elif raw_down > raw_up:
+                pred = "MENOR ▼"
+                strength = (raw_down - raw_up) / total_raw
+            else:
+                pred = "INDETERMINADO"
+                strength = 0.0
 
         result.append({
             "last": last_val,
             "up_pct": round(up_pct * 100, 1),
             "down_pct": round(down_pct * 100, 1),
             "prediction": pred,
-            "up_count": up,
-            "down_count": down,
-            "equal_count": equal,
+            "up_count": raw_up,
+            "down_count": raw_down,
+            "equal_count": raw_equal,
+            "_strength": round(strength, 4),
         })
+
     return result
 
 

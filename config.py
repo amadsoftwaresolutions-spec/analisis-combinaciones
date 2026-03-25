@@ -35,7 +35,7 @@ ML_EPOCHS = 80               # Épocas de entrenamiento
 ML_BATCH = 16
 
 # Ley del tercio
-THIRDS_HOT_FACTOR = 1.80    # Si aparece > esperado * factor → tercio "caliente"
+THIRDS_HOT_FACTOR = 1.30    # Si aparece > esperado * factor → tercio "caliente"
 
 # Predictor Mayor/Menor
 HL_CONFIDENCE = 0.52         # 52% en una dirección para dar predicción
