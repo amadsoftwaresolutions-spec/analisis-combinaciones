@@ -142,7 +142,7 @@ class TabConfig:
                 "ℹ️  Instrucciones:\n"
                 "• Selecciona una lotería de la lista para editarla.\n"
                 "• Para crear una nueva, haz clic en '+ Nueva' y completa el formulario.\n"
-                "• El número mínimo normalmente es 1.\n"
+                "• El número mínimo puede ser 0 (ej: Tris) o 1 (ej: Melate).\n"
                 "• El sistema soporta de 1 a 10 posiciones (balotas).\n"
                 "• Eliminar una lotería borra también todos sus sorteos registrados."
             ),

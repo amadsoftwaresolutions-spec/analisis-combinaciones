@@ -391,7 +391,8 @@ class LotteryAnalyzerApp:
         builders = {
             "config":    lambda p: TabConfig(p, self.state,
                                              on_lottery_saved=self._refresh_lottery_selector),
-            "data":      lambda p: TabData(p, self.state),
+            "data":      lambda p: TabData(p, self.state,
+                                           on_data_changed=self._refresh_lottery_selector),
             "checker":   lambda p: TabChecker(p, self.state),
             "analysis":  lambda p: TabAnalysis(p, self.state),
             "generator": lambda p: TabGenerator(p, self.state),

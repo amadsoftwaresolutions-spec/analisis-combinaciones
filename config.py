@@ -13,7 +13,7 @@ DB_PATH = os.path.join(BASE_DIR, 'data', 'lottery.db')
 # Límites de configuración de lotería
 MIN_POSITIONS = 1
 MAX_POSITIONS = 10
-MIN_NUMBER_VALUE = 1
+MIN_NUMBER_VALUE = 0
 MAX_NUMBER_VALUE = 99
 
 # Configuración de análisis

@@ -20,9 +20,10 @@ def _lbl(parent, text, **kw):
 
 
 class TabData:
-    def __init__(self, parent, state):
+    def __init__(self, parent, state, on_data_changed=None):
         self.parent = parent
         self.state = state
+        self.on_data_changed = on_data_changed
         self._entries: list[ctk.CTkEntry] = []
         self._build()
 
@@ -338,6 +339,8 @@ class TabData:
                 msg += f"\n… y {len(errors) - 10} más."
         messagebox.showinfo("Importación completa", msg)
         self._load_table()
+        if self.on_data_changed:
+            self.on_data_changed()
 
     # ──────────────────────── Tabla ─────────────────────────────────────
     def _load_table(self):

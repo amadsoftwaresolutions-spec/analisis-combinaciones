@@ -203,18 +203,13 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
                     raw_equal += 1
 
         total_raw = raw_up + raw_down + raw_equal
-        if total_raw == 0:
-            result.append({"last": None, "up_pct": 0.0, "down_pct": 0.0,
-                           "prediction": "SIN DATOS", "up_count": 0,
-                           "down_count": 0, "equal_count": 0,
-                           "_strength": 0.0})
-            continue
-
-        up_pct = raw_up / total_raw
-        down_pct = raw_down / total_raw
-        last_val = recent[-1][pos] if pos < len(recent[-1]) else None
+        last_val = recent[-1][pos] if (recent and pos < len(recent[-1])) else None
+        up_pct = (raw_up / total_raw) if total_raw else 0.0
+        down_pct = (raw_down / total_raw) if total_raw else 0.0
 
         # ── Predicción por Equilibrio (punto medio) ─────────────────
+        # Funciona incluso con un solo sorteo: compara el último valor
+        # contra el punto medio del rango.
         if midpoint is not None and last_val is not None:
             if last_val < midpoint:
                 pred = "MAYOR ▲"
@@ -231,7 +226,7 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
                 else:
                     pred = "INDETERMINADO"
                 strength = 0.0
-        else:
+        elif total_raw > 0:
             # Fallback sin rango: usar transiciones
             if raw_up > raw_down:
                 pred = "MAYOR ▲"
@@ -242,6 +237,9 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
             else:
                 pred = "INDETERMINADO"
                 strength = 0.0
+        else:
+            pred = "SIN DATOS"
+            strength = 0.0
 
         result.append({
             "last": last_val,
