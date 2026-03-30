@@ -6,12 +6,11 @@ Pestaña Historial — últimos 50 sorteos con resaltado de:
 from __future__ import annotations
 import random
 import tkinter as tk
-import tkinter.ttk as ttk
 from tkinter import messagebox
 import customtkinter as ctk
 
 from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_HOVER, CLR_TEXT, CLR_TEXT_DIM,
-                    CLR_PRIME, CLR_COMPOSITE, CLR_CONSECUTIVE, CLR_REPEATED,
+                    CLR_ACCENT, CLR_PRIME, CLR_COMPOSITE, CLR_CONSECUTIVE, CLR_REPEATED,
                     HISTORY_DISPLAY, get_active_palette)
 from utils.math_utils import is_prime
 from utils.analyzer import mark_history
@@ -21,10 +20,14 @@ class TabHistory:
     def __init__(self, parent, state):
         self.parent = parent
         self.state = state
+        self._cell_widgets: list[list[tk.Label]] = []  # [row][col]
+        self._header_widgets: list[tk.Label] = []
+        self._row_frames: list[tk.Frame] = []
         self._build()
 
     def _build(self):
         self.parent.configure(fg_color=CLR_BG)
+        pal = get_active_palette()
 
         # ── Cabecera ──
         header = ctk.CTkFrame(self.parent, fg_color=CLR_FRAME,
@@ -54,56 +57,35 @@ class TabHistory:
         legend.pack(side="right", padx=8)
         _dot(legend, CLR_PRIME);           _lbl_s(legend, " Primo  ", CLR_TEXT_DIM)
         _dot(legend, CLR_COMPOSITE);       _lbl_s(legend, " Compuesto  ", CLR_TEXT_DIM)
-        _dot(legend, "#fca5a5");           _lbl_s(legend, " Consecutivo  ", CLR_TEXT_DIM)
-        _dot(legend, "#fcd34d");           _lbl_s(legend, " Repetido de anterior  ", CLR_TEXT_DIM)
-        _dot(legend, "#fdba74");           _lbl_s(legend, " Consec. + Repetido", CLR_TEXT_DIM)
+        _dot(legend, CLR_CONSECUTIVE);     _lbl_s(legend, " Consecutivo  ", CLR_TEXT_DIM)
+        _dot(legend, CLR_REPEATED);        _lbl_s(legend, " Repetido  ", CLR_TEXT_DIM)
 
-        # ── Tabla Treeview centrada ──
+        # ── Grid body (scrollable frame) ──
         body = ctk.CTkFrame(self.parent, fg_color=CLR_FRAME, corner_radius=10)
         body.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        from gui.theme import apply_treeview_style
-        apply_treeview_style("Nova.Treeview", row_height=28)
+        self._scroll = ctk.CTkScrollableFrame(body, fg_color=pal["CARD"])
+        self._scroll.pack(fill="both", expand=True, padx=6, pady=6)
 
-        self._tree = ttk.Treeview(body, style="Nova.Treeview",
-            selectmode="browse", show="headings")
-        _scy = tk.Scrollbar(body, orient="vertical", command=self._tree.yview,
-                            bg=CLR_FRAME2)
-        _scx = tk.Scrollbar(body, orient="horizontal", command=self._tree.xview,
-                            bg=CLR_FRAME2)
-        self._tree.configure(yscrollcommand=_scy.set, xscrollcommand=_scx.set)
-        _scy.pack(side="right", fill="y")
-        _scx.pack(side="bottom", fill="x")
-        self._tree.pack(fill="both", expand=True, padx=12, pady=12)
-
-        # Tags de fila (fondo coloreado por tipo)
-        # normal
-        self._tree.tag_configure("row_even",    background=CLR_CARD,    foreground=CLR_TEXT)
-        self._tree.tag_configure("row_odd",     background=CLR_CARD2,   foreground=CLR_TEXT)
-        # consecutivo → fondo rojo oscuro
-        self._tree.tag_configure("consec_even", background="#3a1010",   foreground="#fca5a5")
-        self._tree.tag_configure("consec_odd",  background="#451414",   foreground="#fca5a5")
-        # repetido → fondo ámbar oscuro
-        self._tree.tag_configure("repeat_even", background="#332200",   foreground="#fcd34d")
-        self._tree.tag_configure("repeat_odd",  background="#3d2900",   foreground="#fcd34d")
-        # ambos → fondo naranja oscuro
-        self._tree.tag_configure("both_even",   background="#3a1f00",   foreground="#fdba74")
-        self._tree.tag_configure("both_odd",    background="#472600",   foreground="#fdba74")
+        # Header row inside scroll
+        self._header_frame = tk.Frame(self._scroll, bg=pal["CARD2"])
+        self._header_frame.pack(fill="x", pady=(0, 2))
 
     # ──────────────────────── Carga de datos ─────────────────────────────
     def retheme(self):
         """Re-apply visual styles for current theme without resetting data."""
-        from gui.theme import apply_treeview_style
-        apply_treeview_style("Nova.Treeview", row_height=28)
-        pal = get_active_palette()
-        self._tree.tag_configure("row_even",    background=pal["CARD"],    foreground=pal["TEXT"])
-        self._tree.tag_configure("row_odd",     background=pal["CARD2"],   foreground=pal["TEXT"])
+        self.refresh()
 
     def refresh(self):
-        for iid in self._tree.get_children():
-            self._tree.delete(iid)
+        # Clear old grid
+        for w in self._scroll.winfo_children():
+            w.destroy()
+        self._cell_widgets.clear()
+        self._header_widgets.clear()
+        self._row_frames.clear()
 
-        self.retheme()
+        pal = get_active_palette()
+        self._scroll.configure(fg_color=pal["CARD"])
 
         if not self.state.has_lottery:
             return
@@ -120,40 +102,103 @@ class TabHistory:
         lot = self.state.lottery
         pos = lot["positions"]
 
-        # Configurar columnas dinámicamente
-        cols = ["_fecha"] + [f"_b{i}" for i in range(pos)] + ["_notas"]
-        self._tree["columns"] = cols
-        self._tree.heading("_fecha", text="Fecha", anchor="center")
-        self._tree.column( "_fecha", width=110, anchor="center", stretch=False, minwidth=90)
-        for i in range(pos):
-            col = f"_b{i}"
-            self._tree.heading(col, text=f"B{i + 1}", anchor="center")
-            self._tree.column( col, width=46, anchor="center", stretch=False, minwidth=36)
-        self._tree.heading("_notas", text="Notas", anchor="w")
-        self._tree.column( "_notas", width=120, anchor="w", stretch=True, minwidth=60)
+        # ── Colors ────────────────────────────────────────────────────
+        bg_even = pal["CARD"]
+        bg_odd  = pal["CARD2"]
+        txt     = pal["TEXT"]
+        txt_dim = pal["TEXT_DIM"]
+        hdr_bg  = pal.get("GHDR", pal["CARD2"])
 
+        # ── Header row ───────────────────────────────────────────────
+        hdr = tk.Frame(self._scroll, bg=hdr_bg)
+        hdr.pack(fill="x", pady=(0, 1))
+
+        headers = ["Fecha"] + [f"B{i+1}" for i in range(pos)] + ["Notas"]
+        col_widths = [100] + [50] * pos + [140]
+
+        for c_idx, (text, w) in enumerate(zip(headers, col_widths)):
+            lbl = tk.Label(hdr, text=text, bg=hdr_bg,
+                           fg=CLR_ACCENT,
+                           font=("Segoe UI", 9, "bold"),
+                           width=w // 8, anchor="center")
+            lbl.grid(row=0, column=c_idx, padx=1, pady=2, sticky="ew")
+            self._header_widgets.append(lbl)
+            hdr.columnconfigure(c_idx, weight=1 if c_idx == len(headers)-1 else 0)
+
+        # ── Data rows ────────────────────────────────────────────────
         for row_idx, draw in enumerate(annotated):
-            parity = "even" if row_idx % 2 == 0 else "odd"
+            bg = bg_even if row_idx % 2 == 0 else bg_odd
             consec_set = set(draw.get("consecutive_positions", []))
             repeat_set = set(draw.get("repeated_from_prev", []))
 
-            notes = []
-            if consec_set and repeat_set:
-                row_tag = f"both_{parity}"
-                notes.append("consec. + repeat.")
-            elif consec_set:
-                row_tag = f"consec_{parity}"
-                notes.append("consec.")
-            elif repeat_set:
-                row_tag = f"repeat_{parity}"
-                notes.append("repeat.")
-            else:
-                row_tag = f"row_{parity}"
+            row_frame = tk.Frame(self._scroll, bg=bg)
+            row_frame.pack(fill="x", pady=0)
+            self._row_frames.append(row_frame)
 
-            values = ([draw["draw_date"]]
-                      + list(draw["numbers"])
-                      + [", ".join(notes)])
-            self._tree.insert("", "end", values=values, tags=(row_tag,))
+            row_cells = []
+
+            # Date cell
+            date_lbl = tk.Label(row_frame, text=draw["draw_date"],
+                                bg=bg, fg=txt_dim,
+                                font=("Segoe UI", 10),
+                                anchor="center")
+            date_lbl.grid(row=0, column=0, padx=1, pady=1, sticky="ew")
+            row_cells.append(date_lbl)
+
+            # Number cells — per-cell coloring
+            nums = draw["numbers"]
+            for i in range(pos):
+                val = nums[i] if i < len(nums) else ""
+                is_consec = i in consec_set
+                is_repeat = i in repeat_set
+
+                # Determine cell color
+                if is_consec and is_repeat:
+                    fg = "#ff8c00"          # orange — both
+                    font_style = ("Consolas", 11, "bold underline")
+                elif is_consec:
+                    fg = CLR_CONSECUTIVE    # red — consecutive
+                    font_style = ("Consolas", 11, "bold")
+                elif is_repeat:
+                    fg = CLR_REPEATED       # amber — repeated
+                    font_style = ("Consolas", 11, "bold underline")
+                elif is_prime(val) if isinstance(val, int) else False:
+                    fg = CLR_PRIME          # violet — prime
+                    font_style = ("Consolas", 11, "bold")
+                elif isinstance(val, int) and val > 1:
+                    fg = CLR_COMPOSITE      # orange soft — composite
+                    font_style = ("Consolas", 11, "bold")
+                else:
+                    fg = txt
+                    font_style = ("Consolas", 11)
+
+                cell = tk.Label(row_frame, text=str(val),
+                                bg=bg, fg=fg,
+                                font=font_style,
+                                anchor="center")
+                cell.grid(row=0, column=1 + i, padx=1, pady=1, sticky="ew")
+                row_cells.append(cell)
+
+            # Notes cell
+            notes = []
+            if consec_set:
+                c_nums = sorted(nums[j] for j in consec_set if j < len(nums))
+                notes.append(f"Cons: {','.join(str(n) for n in c_nums)}")
+            if repeat_set:
+                r_nums = sorted(nums[j] for j in repeat_set if j < len(nums))
+                notes.append(f"Rep: {','.join(str(n) for n in r_nums)}")
+
+            notes_lbl = tk.Label(row_frame, text="  ".join(notes),
+                                 bg=bg, fg=txt_dim,
+                                 font=("Segoe UI", 9),
+                                 anchor="w")
+            notes_lbl.grid(row=0, column=1 + pos, padx=4, pady=1, sticky="ew")
+            row_cells.append(notes_lbl)
+
+            # Configure column weights
+            row_frame.columnconfigure(1 + pos, weight=1)
+
+            self._cell_widgets.append(row_cells)
 
     # ──────────────────────── Ejemplos de muestra ────────────────────────
     def _load_samples(self):

@@ -239,12 +239,20 @@ class TabAnalysis:
     def _render_thirds_block(self, lot: dict, draws_raw):
         frame = _section(
             self._content,
-            f"⚖️ Ley del Tercio  (últimos {RECENT_DRAWS_ANALYSIS} sorteos) — Números a EVITAR")
+            f"⚖️ Ley del Tercio — Números repetidos a EVITAR")
         pal = get_active_palette()
 
         thirds_data = law_of_thirds(
             draws_raw, lot["positions"],
             lot["min_number"], lot["max_number"])
+
+        window = thirds_data[0]["window"] if thirds_data else "?"
+
+        ctk.CTkLabel(frame,
+                      text=f"Números que aparecen 2+ veces en la misma posición "
+                           f"en los últimos {window} sorteos",
+                      font=ctk.CTkFont(family="Segoe UI", size=11),
+                      text_color=pal["TEXT_DIM"]).pack(padx=16, pady=(6, 2))
 
         grid_frame = ctk.CTkFrame(frame, fg_color="transparent")
         grid_frame.pack(fill="x", padx=10, pady=6)
@@ -263,20 +271,6 @@ class TabAnalysis:
                           font=ctk.CTkFont(size=11, weight="bold"),
                           text_color=pal["TEXT"]).pack(pady=(8, 2))
 
-            for t in data["thirds"]:
-                hot = t["hot"]
-                row_t = ctk.CTkFrame(pf, fg_color="#3a1a1a" if hot else "transparent",
-                                      corner_radius=4)
-                row_t.pack(fill="x", padx=8, pady=2)
-                icon = "🔥" if hot else "✅"
-                ctk.CTkLabel(
-                    row_t,
-                    text=f"{icon}  {t['label']}   "
-                         f"Aparece: {t['count']}  /  Esperado: {t['expected']}",
-                    font=ctk.CTkFont(family="Consolas", size=10),
-                    text_color="#ef4444" if hot else pal["TEXT_DIM"],
-                ).pack(anchor="w", padx=6, pady=2)
-
             avoid = data["avoid"]
             if avoid:
                 ctk.CTkLabel(
@@ -288,7 +282,7 @@ class TabAnalysis:
                     justify="left",
                 ).pack(padx=8, pady=(2, 8))
             else:
-                ctk.CTkLabel(pf, text="✅ Sin restricciones",
+                ctk.CTkLabel(pf, text="✅ Sin números repetidos",
                               font=ctk.CTkFont(size=10),
                               text_color="#22c55e").pack(pady=(2, 8))
 

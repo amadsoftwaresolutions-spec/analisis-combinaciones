@@ -256,6 +256,7 @@ class TabData:
         csv_max = None
         parse_errors = []
         all_parsed: list[tuple[str, list[int]]] = []
+        header_skipped = False
         try:
             with open(path, encoding="utf-8", errors="replace") as f:
                 for line_no, line in enumerate(f, 1):
@@ -264,12 +265,20 @@ class TabData:
                         continue
                     parts = [p.strip() for p in line.split(",")]
                     if len(parts) < lot["positions"] + 1:
+                        # Si es la primera línea de datos, probablemente es encabezado
+                        if not header_skipped and not all_parsed:
+                            header_skipped = True
+                            continue
                         parse_errors.append(f"Línea {line_no}: faltan columnas.")
                         continue
                     date = parts[0]
                     try:
                         numbers = [int(p) for p in parts[1: lot["positions"] + 1]]
                     except ValueError:
+                        # Si es la primera línea de datos, probablemente es encabezado
+                        if not header_skipped and not all_parsed:
+                            header_skipped = True
+                            continue
                         parse_errors.append(f"Línea {line_no}: número inválido.")
                         continue
                     all_parsed.append((date, numbers))

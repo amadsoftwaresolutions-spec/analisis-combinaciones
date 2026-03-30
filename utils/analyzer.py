@@ -5,8 +5,7 @@ from __future__ import annotations
 import random
 from collections import defaultdict
 import numpy as np
-from config import (RECENT_DRAWS_ANALYSIS, REDUCTION_TARGET_PCT, MIN_SIMILAR_MATCHES,
-                    THIRDS_HOT_FACTOR)
+from config import (RECENT_DRAWS_ANALYSIS, REDUCTION_TARGET_PCT, MIN_SIMILAR_MATCHES)
 from utils.math_utils import is_prime, is_all_consecutive, is_all_prime, has_many_consecutive
 
 
@@ -73,8 +72,22 @@ def global_frequency(draws: list[list[int]], min_num: int, max_num: int) -> dict
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 3. Ley del Tercio
+# 3. Ley del Tercio — números repetidos por posición
 # ═══════════════════════════════════════════════════════════════════════════
+
+def _thirds_window(max_num: int) -> int:
+    """Devuelve cuántos sorteos recientes revisar según el rango de la lotería."""
+    pool = max_num  # max_num ya indica el tope del rango
+    if pool <= 9:
+        return 3
+    if pool <= 30:
+        return 5
+    if pool <= 45:
+        return 6
+    if pool <= 70:
+        return 7
+    return 8  # 71-100+
+
 
 def get_thirds(min_num: int, max_num: int) -> tuple[range, range, range]:
     """Divide el rango en tres tercios lo más iguales posible."""
@@ -91,68 +104,37 @@ def get_thirds(min_num: int, max_num: int) -> tuple[range, range, range]:
 
 def law_of_thirds(draws: list[list[int]], positions: int,
                    min_num: int, max_num: int,
-                   recent_n: int = RECENT_DRAWS_ANALYSIS) -> list[dict]:
+                   recent_n: int | None = None) -> list[dict]:
     """
-    Para cada posición, determina qué números evitar según la Ley del Tercio.
+    Para cada posición, identifica los números que han aparecido 2 o más
+    veces en esa misma posición en los últimos N sorteos.
 
-    Lógica:
-      - Se divide el rango en 3 tercios iguales.
-      - Se cuentan las apariciones de cada tercio en los últimos `recent_n` sorteos.
-      - Si un tercio excede el umbral (esperado × THIRDS_HOT_FACTOR), está "caliente"
-        y TODOS sus números deben evitarse (tiende a enfriarse).
-      - Si ningún tercio está caliente, se evita el que más apareció.
+    La ventana N depende del rango de la lotería:
+      - 0-9    → 3 sorteos
+      - 20-30  → 5 sorteos
+      - 31-45  → 6 sorteos
+      - 46-70  → 7 sorteos
+      - 71-100 → 8 sorteos
 
-    Retorna una lista (una entrada por posición) con:
-      {
-        'thirds': [{'range': range, 'count': int, 'expected': float, 'hot': bool}, ...],
-        'avoid': [lista de números a evitar],
-      }
+    Estos números repetidos son los que se deben EVITAR.
+
+    Retorna una lista (por posición) con:
+      { 'window': int, 'avoid': [números repetidos ≥2 veces] }
     """
-    recent = draws[-recent_n:] if len(draws) > recent_n else draws
-    t1, t2, t3 = get_thirds(min_num, max_num)
-    thirds_ranges = [t1, t2, t3]
-    expected = len(recent) / 3.0
+    window = recent_n if recent_n is not None else _thirds_window(max_num)
+    recent = draws[-window:] if len(draws) > window else draws
 
     result = []
     for pos in range(positions):
-        counts = [0, 0, 0]
+        freq: dict[int, int] = {}
         for draw in recent:
             if pos < len(draw):
                 n = draw[pos]
-                for idx, tr in enumerate(thirds_ranges):
-                    if n in tr:
-                        counts[idx] += 1
-                        break
+                freq[n] = freq.get(n, 0) + 1
 
-        thirds_info = []
-        avoid = []
-        any_hot = False
-        for idx, (tr, cnt) in enumerate(zip(thirds_ranges, counts)):
-            hot = cnt > expected * THIRDS_HOT_FACTOR
-            if hot:
-                any_hot = True
-            thirds_info.append({
-                "range": tr,
-                "label": f"T{idx + 1} [{tr.start}–{tr.stop - 1}]",
-                "count": cnt,
-                "expected": round(expected, 1),
-                "hot": hot,
-            })
-
-        if any_hot:
-            # Evitar todos los números de los tercios calientes
-            for info, tr in zip(thirds_info, thirds_ranges):
-                if info["hot"]:
-                    avoid.extend(list(tr))
-        else:
-            # Ninguno pasa el umbral → evitar el tercio con más apariciones
-            max_cnt = max(counts)
-            if max_cnt > expected:
-                hottest_idx = counts.index(max_cnt)
-                thirds_info[hottest_idx]["hot"] = True
-                avoid.extend(list(thirds_ranges[hottest_idx]))
-
-        result.append({"thirds": thirds_info, "avoid": sorted(avoid)})
+        # Números que aparecen 2+ veces en esta posición → evitar
+        avoid = sorted(n for n, cnt in freq.items() if cnt >= 2)
+        result.append({"window": window, "avoid": avoid})
     return result
 
 
@@ -166,11 +148,16 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
                           max_num: int | None = None) -> list[dict]:
     """
     Para cada posición predice si el siguiente número será MAYOR o MENOR
-    usando el método de **Equilibrio de Números**: comparación del último
-    valor con el punto medio del rango.
+    usando el método de **Equilibrio de Números Posicional**: comparación
+    del último valor con el valor esperado de esa posición (estadístico
+    de orden), NO con el punto medio global del rango.
 
-      - Último < punto_medio  →  MAYOR ▲  (tiende a subir hacia el centro)
-      - Último ≥ punto_medio  →  MENOR ▼  (tiende a bajar hacia el centro)
+    Cada posición k (1-indexada) en una lotería ordenada de N balotas
+    extraídas de [min, max] tiene un valor esperado:
+        E[X_(k)] = min + (max - min) * k / (N + 1)
+
+      - Último < E[X_(k)]  →  MAYOR ▲  (tiende a subir hacia su centro)
+      - Último > E[X_(k)]  →  MENOR ▼  (tiende a bajar hacia su centro)
 
     Adicionalmente calcula estadísticas de transiciones (subidas/bajadas)
     como información complementaria.
@@ -182,13 +169,13 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
     """
     recent = draws[-recent_n:] if len(draws) > recent_n else draws
 
-    # Punto medio del rango para equilibrio
-    midpoint = None
-    if min_num is not None and max_num is not None:
-        midpoint = (min_num + max_num) / 2
-
     result = []
     for pos in range(positions):
+        # ── Punto medio posicional (estadístico de orden) ────────────
+        midpoint = None
+        if min_num is not None and max_num is not None:
+            midpoint = min_num + (max_num - min_num) * (pos + 1) / (positions + 1)
+
         # ── Estadísticas de transiciones (informativas) ──────────────
         raw_up = raw_down = raw_equal = 0
         for i in range(1, len(recent)):
@@ -207,9 +194,9 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
         up_pct = (raw_up / total_raw) if total_raw else 0.0
         down_pct = (raw_down / total_raw) if total_raw else 0.0
 
-        # ── Predicción por Equilibrio (punto medio) ─────────────────
-        # Funciona incluso con un solo sorteo: compara el último valor
-        # contra el punto medio del rango.
+        # ── Predicción por Equilibrio Posicional ────────────────────
+        # Compara el último valor contra el valor esperado de esta
+        # posición específica (no el punto medio global).
         if midpoint is not None and last_val is not None:
             if last_val < midpoint:
                 pred = "MAYOR ▲"

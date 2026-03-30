@@ -163,15 +163,23 @@ class Database:
         with self._conn() as c:
             c.execute("DELETE FROM draws WHERE id=?", (draw_id,))
 
-    def draw_exists(self, lottery_id: int, numbers: list[int]) -> bool:
-        """Verifica si una combinación exacta ya existe."""
-        nums_json = json.dumps(sorted(numbers))
+    def draw_exists(self, lottery_id: int, numbers: list[int],
+                     draw_date: str | None = None) -> bool:
+        """Verifica si un sorteo ya existe (misma fecha Y mismos números)."""
+        sorted_nums = sorted(numbers)
         with self._conn() as c:
-            rows = c.execute(
-                "SELECT numbers FROM draws WHERE lottery_id=?", (lottery_id,)
-            ).fetchall()
+            if draw_date:
+                rows = c.execute(
+                    "SELECT numbers FROM draws WHERE lottery_id=? AND draw_date=?",
+                    (lottery_id, draw_date)
+                ).fetchall()
+            else:
+                rows = c.execute(
+                    "SELECT numbers FROM draws WHERE lottery_id=?",
+                    (lottery_id,)
+                ).fetchall()
         for r in rows:
-            if sorted(json.loads(r[0])) == sorted(numbers):
+            if sorted(json.loads(r[0])) == sorted_nums:
                 return True
         return False
 
@@ -186,7 +194,7 @@ class Database:
         """Importa una lista de (fecha, numeros). Devuelve cuántos se insertaron."""
         inserted = 0
         for date, numbers in draws_data:
-            if not self.draw_exists(lottery_id, numbers):
+            if not self.draw_exists(lottery_id, numbers, draw_date=date):
                 self.add_draw(lottery_id, numbers, date)
                 inserted += 1
         return inserted

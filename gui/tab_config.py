@@ -10,7 +10,7 @@ import customtkinter as ctk
 from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_ACCENT, CLR_BORDER,
                     CLR_TEXT, CLR_TEXT_DIM, CLR_BTN_PRIMARY, CLR_BTN_DANGER,
                     MIN_POSITIONS, MAX_POSITIONS, MIN_NUMBER_VALUE,
-                    MAX_NUMBER_VALUE, FONT_HEADER)
+                    MAX_NUMBER_VALUE, FONT_HEADER, get_active_palette)
 
 
 def _lbl(parent, text, **kw):
@@ -173,22 +173,32 @@ class TabConfig:
             pass
 
     # ──────────────────────── Lista ──────────────────────────────────────
+    def retheme(self):
+        """Re-apply visual styles for current theme."""
+        self.refresh()
+
     def refresh(self):
         """Recarga la lista de loterías."""
+        pal = get_active_palette()
+        clr_card   = pal["CARD"]
+        clr_card2  = pal["CARD2"]
+        clr_border = pal["BORDER"]
+        clr_text_dim = pal["TEXT_DIM"]
+
         for w in self._listbox_frame.winfo_children():
             w.destroy()
         lotteries = self.state.db.get_lotteries()
         if not lotteries:
             _lbl(self._listbox_frame,
                  "Sin loterías. Crea una →",
-                 text_color=CLR_TEXT_DIM).pack(pady=20)
+                 text_color=clr_text_dim).pack(pady=20)
             return
         for lot in lotteries:
             is_active = (lot["id"] == self._selected_id)
             row = ctk.CTkFrame(self._listbox_frame,
-                               fg_color=CLR_CARD2 if is_active else CLR_CARD,
+                               fg_color=clr_card2 if is_active else clr_card,
                                border_width=2 if is_active else 1,
-                               border_color=CLR_ACCENT if is_active else CLR_BORDER,
+                               border_color=CLR_ACCENT if is_active else clr_border,
                                corner_radius=8)
             row.pack(fill="x", pady=3, padx=2)
             ctk.CTkButton(
@@ -198,7 +208,7 @@ class TabConfig:
                      f"{lot['min_number']}–{lot['max_number']}",
                 font=ctk.CTkFont(family="Segoe UI", size=12),
                 fg_color="transparent",
-                hover_color=CLR_CARD2,
+                hover_color=clr_card2,
                 anchor="w",
                 command=lambda l=lot: self._load_lottery(l),
             ).pack(fill="x", padx=4, pady=4)
