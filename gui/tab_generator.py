@@ -466,6 +466,8 @@ class TabGenerator:
                 "Intenta con un universo reducido más grande o menos sorteos históricos.")
             return
 
+        self._generated.sort()
+
         self._result_count_lbl.configure(
             text=f"{len(self._generated)} combinaciones generadas")
         self._render_universe(self._reduced_universe, combos=self._generated)

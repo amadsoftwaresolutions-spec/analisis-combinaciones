@@ -163,7 +163,11 @@ class TabConfig:
             mx = int(self._max_var.get())
             if mx > mn and pos >= 1:
                 pool = mx - mn + 1
-                total = comb(pool, pos) if pool >= pos else 0
+                if pool >= pos:
+                    total = comb(pool, pos)
+                else:
+                    # Con repetición: C(pool+pos-1, pos)
+                    total = comb(pool + pos - 1, pos)
                 self._summary_lbl.configure(
                     text=f"Pool de números: {pool}  |  "
                          f"Posiciones: {pos}  |  "
@@ -271,9 +275,9 @@ class TabConfig:
             messagebox.showerror("Error",
                                   f"Los números deben estar entre {MIN_NUMBER_VALUE} y {MAX_NUMBER_VALUE}.")
             return
-        if mx - mn + 1 < pos:
+        if mx < mn:
             messagebox.showerror("Error",
-                                  "El rango de números debe ser mayor o igual al número de balotas.")
+                                  "El número máximo debe ser mayor o igual al mínimo.")
             return
 
         try:

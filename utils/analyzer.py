@@ -75,18 +75,22 @@ def global_frequency(draws: list[list[int]], min_num: int, max_num: int) -> dict
 # 3. Ley del Tercio — números repetidos por posición
 # ═══════════════════════════════════════════════════════════════════════════
 
-def _thirds_window(max_num: int) -> int:
-    """Devuelve cuántos sorteos recientes revisar según el rango de la lotería."""
-    pool = max_num  # max_num ya indica el tope del rango
-    if pool <= 9:
+def _thirds_window(min_num: int, max_num: int) -> int:
+    """Devuelve cuántos sorteos recientes revisar según el universo de la lotería."""
+    universe = max_num - min_num + 1
+    if universe <= 5:
+        return 2
+    if universe <= 10:
         return 3
-    if pool <= 30:
-        return 5
-    if pool <= 45:
+    if universe <= 30:
         return 6
-    if pool <= 70:
+    if universe <= 40:
         return 7
-    return 8  # 71-100+
+    if universe <= 60:
+        return 8
+    if universe <= 80:
+        return 10
+    return 12  # 80-100+
 
 
 def get_thirds(min_num: int, max_num: int) -> tuple[range, range, range]:
@@ -109,19 +113,21 @@ def law_of_thirds(draws: list[list[int]], positions: int,
     Para cada posición, identifica los números que han aparecido 2 o más
     veces en esa misma posición en los últimos N sorteos.
 
-    La ventana N depende del rango de la lotería:
-      - 0-9    → 3 sorteos
-      - 20-30  → 5 sorteos
-      - 31-45  → 6 sorteos
-      - 46-70  → 7 sorteos
-      - 71-100 → 8 sorteos
+    La ventana N depende del universo de la lotería (max - min + 1):
+      - ≤5     → 2 sorteos
+      - ≤10    → 3 sorteos
+      - ≤30    → 6 sorteos
+      - ≤40    → 7 sorteos
+      - ≤60    → 8 sorteos
+      - ≤80    → 10 sorteos
+      - ≤100   → 12 sorteos
 
     Estos números repetidos son los que se deben EVITAR.
 
     Retorna una lista (por posición) con:
       { 'window': int, 'avoid': [números repetidos ≥2 veces] }
     """
-    window = recent_n if recent_n is not None else _thirds_window(max_num)
+    window = recent_n if recent_n is not None else _thirds_window(min_num, max_num)
     recent = draws[-window:] if len(draws) > window else draws
 
     result = []
@@ -171,10 +177,17 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
 
     result = []
     for pos in range(positions):
-        # ── Punto medio posicional (estadístico de orden) ────────────
+        # ── Punto medio posicional ───────────────────────────────────
+        # Para loterías con universo pequeño (≤5 valores posibles) cada
+        # posición se comporta como sorteo independiente → punto medio
+        # global.  Para universos grandes se usa el estadístico de orden.
         midpoint = None
         if min_num is not None and max_num is not None:
-            midpoint = min_num + (max_num - min_num) * (pos + 1) / (positions + 1)
+            universe = max_num - min_num + 1
+            if universe <= 5:
+                midpoint = (min_num + max_num) / 2
+            else:
+                midpoint = min_num + (max_num - min_num) * (pos + 1) / (positions + 1)
 
         # ── Estadísticas de transiciones (informativas) ──────────────
         raw_up = raw_down = raw_equal = 0
@@ -418,12 +431,18 @@ def generate_combinations(reduced_universe: list[list[int]],
     max_attempts = count * 3000
 
     if len(pool) < positions:
-        return []
+        # Universo menor que posiciones → se permiten repetidos
+        allow_repeats = True
+    else:
+        allow_repeats = False
 
     for _ in range(max_attempts):
         if len(results) >= count:
             break
-        combo = tuple(sorted(random.sample(pool, positions)))
+        if allow_repeats:
+            combo = tuple(sorted(random.choices(pool, k=positions)))
+        else:
+            combo = tuple(sorted(random.sample(pool, positions)))
         if excl_repeated_historical and combo in seen:
             continue
         combo_list = list(combo)

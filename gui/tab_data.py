@@ -203,11 +203,6 @@ class TabData:
                 return
             numbers.append(n)
 
-        if len(numbers) != len(set(numbers)):
-            messagebox.showerror("Error",
-                                  "No se permiten números repetidos en la misma combinación.")
-            return
-
         draw_date = self._date_var.get().strip() or _today()
 
         if self.state.db.draw_exists(self.state.lottery_id, numbers):
