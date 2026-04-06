@@ -108,7 +108,8 @@ def get_thirds(min_num: int, max_num: int) -> tuple[range, range, range]:
 
 def law_of_thirds(draws: list[list[int]], positions: int,
                    min_num: int, max_num: int,
-                   recent_n: int | None = None) -> list[dict]:
+                   recent_n: int | None = None,
+                   ranges: list[tuple[int, int]] | None = None) -> list[dict]:
     """
     Para cada posición, identifica los números que han aparecido 2 o más
     veces en esa misma posición en los últimos N sorteos.
@@ -124,14 +125,24 @@ def law_of_thirds(draws: list[list[int]], positions: int,
 
     Estos números repetidos son los que se deben EVITAR.
 
+    Si se proporciona ``ranges`` (lista de (min, max) por posición), cada
+    posición usa su propio rango para calcular la ventana.
+
     Retorna una lista (por posición) con:
       { 'window': int, 'avoid': [números repetidos ≥2 veces] }
     """
-    window = recent_n if recent_n is not None else _thirds_window(min_num, max_num)
-    recent = draws[-window:] if len(draws) > window else draws
+    # Ventana por defecto usando el rango principal
+    default_window = recent_n if recent_n is not None else _thirds_window(min_num, max_num)
 
     result = []
     for pos in range(positions):
+        # Cada posición puede tener su propia ventana si tiene rango distinto
+        if ranges and pos < len(ranges):
+            pos_min, pos_max = ranges[pos]
+            window = recent_n if recent_n is not None else _thirds_window(pos_min, pos_max)
+        else:
+            window = default_window
+        recent = draws[-window:] if len(draws) > window else draws
         freq: dict[int, int] = {}
         for draw in recent:
             if pos < len(draw):
@@ -151,7 +162,8 @@ def law_of_thirds(draws: list[list[int]], positions: int,
 def predict_higher_lower(draws: list[list[int]], positions: int,
                           recent_n: int = RECENT_DRAWS_ANALYSIS,
                           min_num: int | None = None,
-                          max_num: int | None = None) -> list[dict]:
+                          max_num: int | None = None,
+                          ranges: list[tuple[int, int]] | None = None) -> list[dict]:
     """
     Para cada posición predice si el siguiente número será MAYOR o MENOR
     usando el método de **Equilibrio de Números Posicional**: comparación
@@ -168,6 +180,11 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
     Adicionalmente calcula estadísticas de transiciones (subidas/bajadas)
     como información complementaria.
 
+    Si se proporciona ``ranges`` (lista de (min, max) por posición), cada
+    posición usa su propio rango en lugar de ``min_num``/``max_num``.  Esto
+    es fundamental para loterías con balotas adicionales cuyo universo es
+    más pequeño (ej. Euromillones: 5 principales 1-50 + 2 estrellas 1-12).
+
     Retorna lista de dicts por posición:
       { 'last': int, 'up_pct': float, 'down_pct': float, 'prediction': str,
         'up_count': int, 'down_count': int, 'equal_count': int,
@@ -177,17 +194,34 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
 
     result = []
     for pos in range(positions):
+        # ── Rango para esta posición ─────────────────────────────────
+        if ranges and pos < len(ranges):
+            pos_min, pos_max = ranges[pos]
+        else:
+            pos_min = min_num
+            pos_max = max_num
+
         # ── Punto medio posicional ───────────────────────────────────
-        # Para loterías con universo pequeño (≤5 valores posibles) cada
-        # posición se comporta como sorteo independiente → punto medio
-        # global.  Para universos grandes se usa el estadístico de orden.
+        # Para posiciones con rango propio (adicionales) se usa el punto
+        # medio global de su rango.  Para posiciones principales en
+        # universos grandes se usa el estadístico de orden.
         midpoint = None
-        if min_num is not None and max_num is not None:
-            universe = max_num - min_num + 1
-            if universe <= 5:
-                midpoint = (min_num + max_num) / 2
+        if pos_min is not None and pos_max is not None:
+            # Determinar cuántas posiciones comparten este mismo rango
+            # para calcular correctamente el estadístico de orden.
+            if ranges and pos < len(ranges):
+                same_range = [i for i in range(len(ranges)) if ranges[i] == (pos_min, pos_max)]
+                rank_in_group = same_range.index(pos) + 1
+                group_size = len(same_range)
             else:
-                midpoint = min_num + (max_num - min_num) * (pos + 1) / (positions + 1)
+                rank_in_group = pos + 1
+                group_size = positions
+
+            universe = pos_max - pos_min + 1
+            if universe <= 5:
+                midpoint = (pos_min + pos_max) / 2
+            else:
+                midpoint = pos_min + (pos_max - pos_min) * rank_in_group / (group_size + 1)
 
         # ── Estadísticas de transiciones (informativas) ──────────────
         raw_up = raw_down = raw_equal = 0

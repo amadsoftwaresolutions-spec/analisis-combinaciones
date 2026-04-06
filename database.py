@@ -57,6 +57,9 @@ class Database:
                     positions   INTEGER NOT NULL,
                     min_number  INTEGER NOT NULL DEFAULT 1,
                     max_number  INTEGER NOT NULL,
+                    extra_positions INTEGER NOT NULL DEFAULT 0,
+                    extra_min       INTEGER NOT NULL DEFAULT 0,
+                    extra_max       INTEGER NOT NULL DEFAULT 0,
                     created_at  TEXT    DEFAULT CURRENT_TIMESTAMP
                 );
 
@@ -80,41 +83,53 @@ class Database:
                     FOREIGN KEY (lottery_id) REFERENCES lotteries(id) ON DELETE CASCADE
                 );
             """)
+            # Migrate: add extra columns if missing
+            cols = {r[1] for r in c.execute("PRAGMA table_info(lotteries)").fetchall()}
+            if "extra_positions" not in cols:
+                c.execute("ALTER TABLE lotteries ADD COLUMN extra_positions INTEGER NOT NULL DEFAULT 0")
+                c.execute("ALTER TABLE lotteries ADD COLUMN extra_min INTEGER NOT NULL DEFAULT 0")
+                c.execute("ALTER TABLE lotteries ADD COLUMN extra_max INTEGER NOT NULL DEFAULT 0")
 
     # ──────────────────────── lotteries ────────────────────────
-    def create_lottery(self, name: str, positions: int, min_number: int, max_number: int) -> int:
+    def create_lottery(self, name: str, positions: int, min_number: int, max_number: int,
+                       extra_positions: int = 0, extra_min: int = 0, extra_max: int = 0) -> int:
         with self._conn() as c:
             cur = c.execute(
-                "INSERT INTO lotteries (name, positions, min_number, max_number) VALUES (?,?,?,?)",
-                (name.strip(), positions, min_number, max_number)
+                "INSERT INTO lotteries (name, positions, min_number, max_number, extra_positions, extra_min, extra_max) VALUES (?,?,?,?,?,?,?)",
+                (name.strip(), positions, min_number, max_number, extra_positions, extra_min, extra_max)
             )
             return cur.lastrowid
 
     def get_lotteries(self) -> list[dict]:
         with self._conn() as c:
             rows = c.execute(
-                "SELECT id, name, positions, min_number, max_number FROM lotteries ORDER BY name"
+                "SELECT id, name, positions, min_number, max_number, extra_positions, extra_min, extra_max FROM lotteries ORDER BY name"
             ).fetchall()
         return [{"id": r[0], "name": r[1], "positions": r[2],
-                 "min_number": r[3], "max_number": r[4]} for r in rows]
+                 "min_number": r[3], "max_number": r[4],
+                 "extra_positions": r[5], "extra_min": r[6], "extra_max": r[7]} for r in rows]
 
     def get_lottery(self, lottery_id: int) -> dict | None:
         with self._conn() as c:
             r = c.execute(
-                "SELECT id, name, positions, min_number, max_number FROM lotteries WHERE id=?",
+                "SELECT id, name, positions, min_number, max_number, extra_positions, extra_min, extra_max FROM lotteries WHERE id=?",
                 (lottery_id,)
             ).fetchone()
         if not r:
             return None
         return {"id": r[0], "name": r[1], "positions": r[2],
-                "min_number": r[3], "max_number": r[4]}
+                "min_number": r[3], "max_number": r[4],
+                "extra_positions": r[5], "extra_min": r[6], "extra_max": r[7]}
 
     def update_lottery(self, lottery_id: int, name: str, positions: int,
-                       min_number: int, max_number: int):
+                       min_number: int, max_number: int,
+                       extra_positions: int = 0, extra_min: int = 0, extra_max: int = 0):
         with self._conn() as c:
             c.execute(
-                "UPDATE lotteries SET name=?, positions=?, min_number=?, max_number=? WHERE id=?",
-                (name.strip(), positions, min_number, max_number, lottery_id)
+                "UPDATE lotteries SET name=?, positions=?, min_number=?, max_number=?, "
+                "extra_positions=?, extra_min=?, extra_max=? WHERE id=?",
+                (name.strip(), positions, min_number, max_number,
+                 extra_positions, extra_min, extra_max, lottery_id)
             )
 
     def delete_lottery(self, lottery_id: int):

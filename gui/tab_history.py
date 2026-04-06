@@ -26,11 +26,18 @@ class TabHistory:
         self._build()
 
     def _build(self):
-        self.parent.configure(fg_color=CLR_BG)
         pal = get_active_palette()
+        clr_bg = pal["BG"]
+        clr_card = pal["CARD"]
+        clr_card2 = pal["CARD2"]
+        clr_text = pal["TEXT"]
+        clr_text_dim = pal["TEXT_DIM"]
+        clr_hover = pal["HOVER"]
+
+        self.parent.configure(fg_color=clr_bg)
 
         # ── Cabecera ──
-        header = ctk.CTkFrame(self.parent, fg_color=CLR_FRAME,
+        header = ctk.CTkFrame(self.parent, fg_color=clr_card,
                                corner_radius=10, height=64)
         header.pack(fill="x", padx=12, pady=(12, 6))
         header.pack_propagate(False)
@@ -39,11 +46,12 @@ class TabHistory:
             header,
             text=f"Historial — Últimos {HISTORY_DISPLAY} Sorteos",
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color=CLR_TEXT,
+            text_color=clr_text,
         ).pack(side="left", padx=16, pady=12)
 
         ctk.CTkButton(header, text="↻  Actualizar",
-                      fg_color=CLR_FRAME2, hover_color=CLR_HOVER,
+                      fg_color=clr_card2, hover_color=clr_hover,
+                      text_color=clr_text,
                       width=110, height=32,
                       command=self.refresh).pack(side="right", padx=(4, 12))
         ctk.CTkButton(header, text="＋ Cargar ejemplos",
@@ -55,16 +63,16 @@ class TabHistory:
         # Leyenda
         legend = ctk.CTkFrame(header, fg_color="transparent")
         legend.pack(side="right", padx=8)
-        _dot(legend, CLR_PRIME);           _lbl_s(legend, " Primo  ", CLR_TEXT_DIM)
-        _dot(legend, CLR_COMPOSITE);       _lbl_s(legend, " Compuesto  ", CLR_TEXT_DIM)
-        _dot(legend, CLR_CONSECUTIVE);     _lbl_s(legend, " Consecutivo  ", CLR_TEXT_DIM)
-        _dot(legend, CLR_REPEATED);        _lbl_s(legend, " Repetido  ", CLR_TEXT_DIM)
+        _dot(legend, CLR_PRIME);           _lbl_s(legend, " Primo  ", clr_text_dim)
+        _dot(legend, CLR_COMPOSITE);       _lbl_s(legend, " Compuesto  ", clr_text_dim)
+        _dot(legend, CLR_CONSECUTIVE);     _lbl_s(legend, " Consecutivo  ", clr_text_dim)
+        _dot(legend, CLR_REPEATED);        _lbl_s(legend, " Repetido  ", clr_text_dim)
 
         # ── Grid body (scrollable frame) ──
-        body = ctk.CTkFrame(self.parent, fg_color=CLR_FRAME, corner_radius=10)
+        body = ctk.CTkFrame(self.parent, fg_color=clr_card, corner_radius=10)
         body.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
-        self._scroll = ctk.CTkScrollableFrame(body, fg_color=pal["CARD"])
+        self._scroll = ctk.CTkScrollableFrame(body, fg_color=clr_card)
         self._scroll.pack(fill="both", expand=True, padx=6, pady=6)
 
         # Header row inside scroll
@@ -73,7 +81,13 @@ class TabHistory:
 
     # ──────────────────────── Carga de datos ─────────────────────────────
     def retheme(self):
-        """Re-apply visual styles for current theme without resetting data."""
+        """Re-apply visual styles for current theme — full rebuild."""
+        for w in self.parent.winfo_children():
+            w.destroy()
+        self._cell_widgets.clear()
+        self._header_widgets.clear()
+        self._row_frames.clear()
+        self._build()
         self.refresh()
 
     def refresh(self):

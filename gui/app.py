@@ -425,13 +425,15 @@ class LotteryAnalyzerApp:
 
         self._status_var = tk.StringVar(
             value=f"  {APP_NAME}  ·  Seleccione una lotería para comenzar")
-        tk.Label(bar, textvariable=self._status_var,
+        self._status_lbl = tk.Label(bar, textvariable=self._status_var,
                  font=("Segoe UI", 10),
-                 fg=CLR_TEXT_DIM, bg=BAR_BG).pack(side="left", padx=4)
+                 fg=CLR_TEXT_DIM, bg=BAR_BG)
+        self._status_lbl.pack(side="left", padx=4)
 
-        tk.Label(bar, text=f"v{APP_VERSION}",
+        self._version_lbl = tk.Label(bar, text=f"v{APP_VERSION}",
                  font=("Segoe UI", 9),
-                 fg=CLR_TEXT_DIM, bg=BAR_BG).pack(side="right", padx=16)
+                 fg=CLR_TEXT_DIM, bg=BAR_BG)
+        self._version_lbl.pack(side="right", padx=16)
 
     def _animate_pulse(self):
         self._pulse_cv.itemconfig(
@@ -528,8 +530,10 @@ class LotteryAnalyzerApp:
         # Theme button
         self._theme_btn.configure(fg=palette["TEXT_DIM"], bg=palette["HDR"])
 
-        # Pulse dot canvas + status bar label
+        # Pulse dot canvas + status bar labels
         self._pulse_cv.configure(bg=palette["BAR"])
+        self._status_lbl.configure(fg=palette["TEXT_DIM"], bg=palette["BAR"])
+        self._version_lbl.configure(fg=palette["TEXT_DIM"], bg=palette["BAR"])
 
     # ── Internal helper ───────────────────────────────────────────────────────
     @staticmethod

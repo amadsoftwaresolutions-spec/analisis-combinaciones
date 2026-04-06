@@ -63,6 +63,7 @@ class TabData:
         # Importar CSV
         ctk.CTkButton(left, text="📂  Importar desde CSV / TXT",
                       fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+                      text_color=CLR_TEXT,
                       height=34,
                       command=self._import_csv).pack(pady=(0, 6))
 
@@ -129,19 +130,24 @@ class TabData:
             return
 
         lot = self.state.lottery
-        pos = lot["positions"]
+        main_pos = lot["positions"]
+        extra_pos = lot.get("extra_positions", 0) or 0
+        total_pos = main_pos + extra_pos
         mn, mx = lot["min_number"], lot["max_number"]
+        emn = lot.get("extra_min", 0) or 0
+        emx = lot.get("extra_max", 0) or 0
 
         # Máximo 5 entradas por fila para que quepan en el panel
         ROW_SIZE = 5
-        for row_start in range(0, pos, ROW_SIZE):
-            row_indices = range(row_start, min(row_start + ROW_SIZE, pos))
+        for row_start in range(0, total_pos, ROW_SIZE):
+            row_indices = range(row_start, min(row_start + ROW_SIZE, total_pos))
 
             header_row = ctk.CTkFrame(self._entries_frame, fg_color="transparent")
             header_row.pack(fill="x")
             for i in row_indices:
+                lbl_text = f"B{i + 1}" if i < main_pos else f"E{i - main_pos + 1}"
                 ctk.CTkLabel(header_row,
-                             text=f"B{i + 1}",
+                             text=lbl_text,
                              font=ctk.CTkFont(family="Consolas", size=10),
                              text_color=CLR_TEXT_DIM,
                              width=52).pack(side="left", padx=2)
@@ -149,8 +155,12 @@ class TabData:
             entry_row = ctk.CTkFrame(self._entries_frame, fg_color="transparent")
             entry_row.pack(fill="x", pady=(2, 6))
             for i in row_indices:
+                if i < main_pos:
+                    ph = f"{mn}\u2013{mx}"
+                else:
+                    ph = f"{emn}\u2013{emx}"
                 e = ctk.CTkEntry(entry_row, width=52,
-                                  placeholder_text=f"{mn}–{mx}",
+                                  placeholder_text=ph,
                                   font=ctk.CTkFont(family="Consolas", size=12))
                 e.pack(side="left", padx=2)
                 e.bind("<Return>", lambda _, idx=i: self._next_entry(idx))
@@ -181,6 +191,10 @@ class TabData:
             messagebox.showwarning("Sin lotería", "Selecciona una lotería activa.")
             return
         lot = self.state.lottery
+        main_pos = lot["positions"]
+        extra_pos = lot.get("extra_positions", 0) or 0
+        emn = lot.get("extra_min", 0) or 0
+        emx = lot.get("extra_max", 0) or 0
         numbers = []
         for i, e in enumerate(self._entries):
             raw = e.get().strip()
@@ -194,20 +208,23 @@ class TabData:
                 messagebox.showerror("Error",
                                       f"Valor inválido en balota {i + 1}: '{raw}'")
                 return
-            if not (lot["min_number"] <= n <= lot["max_number"]):
+            if i < main_pos:
+                lo, hi = lot["min_number"], lot["max_number"]
+            else:
+                lo, hi = emn, emx
+            if not (lo <= n <= hi):
                 messagebox.showerror(
                     "Error",
-                    f"Balota {i + 1}: {n} fuera del rango "
-                    f"[{lot['min_number']}, {lot['max_number']}]."
+                    f"Balota {i + 1}: {n} fuera del rango [{lo}, {hi}]."
                 )
                 return
             numbers.append(n)
 
         draw_date = self._date_var.get().strip() or _today()
 
-        if self.state.db.draw_exists(self.state.lottery_id, numbers):
+        if self.state.db.draw_exists(self.state.lottery_id, numbers, draw_date=draw_date):
             messagebox.showwarning("Duplicado",
-                                    "Esta combinación ya existe en el historial.")
+                                    "Esta combinación ya existe en el historial para esa fecha.")
             return
 
         self.state.db.add_draw(self.state.lottery_id, numbers, draw_date)
@@ -259,7 +276,8 @@ class TabData:
                     if not line or line.startswith("#"):
                         continue
                     parts = [p.strip() for p in line.split(",")]
-                    if len(parts) < lot["positions"] + 1:
+                    total_cols = lot["positions"] + (lot.get("extra_positions", 0) or 0)
+                    if len(parts) < total_cols + 1:
                         # Si es la primera línea de datos, probablemente es encabezado
                         if not header_skipped and not all_parsed:
                             header_skipped = True
@@ -268,7 +286,7 @@ class TabData:
                         continue
                     date = parts[0]
                     try:
-                        numbers = [int(p) for p in parts[1: lot["positions"] + 1]]
+                        numbers = [int(p) for p in parts[1: total_cols + 1]]
                     except ValueError:
                         # Si es la primera línea de datos, probablemente es encabezado
                         if not header_skipped and not all_parsed:
@@ -315,7 +333,10 @@ class TabData:
             if ok:
                 self.state.db.update_lottery(
                     self.state.lottery_id, lot["name"],
-                    lot["positions"], new_min, new_max)
+                    lot["positions"], new_min, new_max,
+                    lot.get("extra_positions", 0) or 0,
+                    lot.get("extra_min", 0) or 0,
+                    lot.get("extra_max", 0) or 0)
                 # Refrescar datos de la lotería activa
                 lot = self.state.db.get_lottery(self.state.lottery_id)
                 self.state.lottery = lot
@@ -323,13 +344,23 @@ class TabData:
         # ── Filtrar con el rango (posiblemente actualizado) e importar ────
         errors = list(parse_errors)
         draws_to_import = []
+        main_pos = lot["positions"]
+        extra_pos = lot.get("extra_positions", 0) or 0
+        emn = lot.get("extra_min", 0) or 0
+        emx = lot.get("extra_max", 0) or 0
         for date, numbers in all_parsed:
-            if any(not (lot["min_number"] <= n <= lot["max_number"])
-                   for n in numbers):
-                oob = [n for n in numbers
-                       if not (lot["min_number"] <= n <= lot["max_number"])]
-                errors.append(f"Números {oob} fuera de rango "
-                              f"{lot['min_number']}–{lot['max_number']}.")
+            out_of_range = False
+            for idx, n in enumerate(numbers):
+                if idx < main_pos:
+                    lo, hi = lot["min_number"], lot["max_number"]
+                else:
+                    lo, hi = emn, emx
+                if not (lo <= n <= hi):
+                    errors.append(f"Número {n} (pos {idx+1}) fuera de rango "
+                                  f"{lo}–{hi}.")
+                    out_of_range = True
+                    break
+            if out_of_range:
                 continue
             draws_to_import.append((date, numbers))
 
@@ -365,16 +396,20 @@ class TabData:
             return
 
         draws = self.state.db.get_draws(self.state.lottery_id, limit=50)
-        pos = self.state.lottery["positions"]
+        lot = self.state.lottery
+        main_pos = lot["positions"]
+        extra_pos = lot.get("extra_positions", 0) or 0
+        total_pos = main_pos + extra_pos
 
         # Configurar columnas según posiciones de la lotería
-        cols = ["_fecha"] + [f"_b{i}" for i in range(pos)]
+        cols = ["_fecha"] + [f"_b{i}" for i in range(total_pos)]
         self._tree["columns"] = cols
         self._tree.heading("_fecha", text="Fecha", anchor="center")
         self._tree.column("_fecha", width=110, anchor="center", stretch=False, minwidth=90)
-        for i in range(pos):
+        for i in range(total_pos):
             col = f"_b{i}"
-            self._tree.heading(col, text=f"B{i + 1}", anchor="center")
+            hdr_text = f"B{i + 1}" if i < main_pos else f"E{i - main_pos + 1}"
+            self._tree.heading(col, text=hdr_text, anchor="center")
             self._tree.column(col, width=46, anchor="center", stretch=False, minwidth=36)
 
         if not draws:

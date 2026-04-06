@@ -174,12 +174,21 @@ class TabChecker:
             return
 
         lot       = self.state.lottery
-        n         = lot["positions"]
+        main_n    = lot["positions"]
+        extra_n   = lot.get("extra_positions", 0) or 0
+        n         = main_n + extra_n
         draws     = self.state.db.get_draws(self.state.lottery_id)
         last_draw = draws[0]["numbers"] if draws else []
         draws_num = [d["numbers"] for d in reversed(draws)]   # ASC para predict
         mn, mx    = lot["min_number"], lot["max_number"]
-        hl        = predict_higher_lower(draws_num, n, min_num=mn, max_num=mx) if draws_num else []
+        emn       = lot.get("extra_min", 0) or 0
+        emx       = lot.get("extra_max", 0) or 0
+
+        # Rango por posición: principales usan (mn, mx), extras usan (emn, emx)
+        ranges = [(mn, mx)] * main_n + [(emn, emx)] * extra_n if extra_n else None
+
+        hl        = predict_higher_lower(draws_num, n, min_num=mn, max_num=mx,
+                                          ranges=ranges) if draws_num else []
 
         p = get_active_palette()          # colours follow the active theme
         cell_bg  = p["GRID"]
@@ -237,7 +246,7 @@ class TabChecker:
             self._dir_labels.append(lbl)
 
         # ── Sección 4: NÚMEROS A EVITAR (ley del tercio) ───────────────
-        thirds_data = (law_of_thirds(draws_num, n, mn, mx)
+        thirds_data = (law_of_thirds(draws_num, n, mn, mx, ranges=ranges)
                        if draws_num else [])
         row4 = _section_cells(self._grid_frame, "NÚMEROS A EVITAR", n)
         for i, cell in enumerate(row4):
@@ -311,7 +320,11 @@ class TabChecker:
         if not self.state.has_lottery:
             messagebox.showwarning("Sin lotería", "Selecciona una lotería activa.")
             return
-        lot     = self.state.lottery
+        lot      = self.state.lottery
+        main_n   = lot["positions"]
+        extra_n  = lot.get("extra_positions", 0) or 0
+        emn      = lot.get("extra_min", 0) or 0
+        emx      = lot.get("extra_max", 0) or 0
         numbers = []
         for i, e in enumerate(self._entries):
             raw = e.get().strip()
@@ -324,11 +337,16 @@ class TabChecker:
                 messagebox.showerror("Error",
                                      f"Valor no válido en balota {i + 1}: '{raw}'")
                 return
-            if not (lot["min_number"] <= n <= lot["max_number"]):
+            # Rango según si es posición principal o adicional
+            if i < main_n:
+                lo, hi = lot["min_number"], lot["max_number"]
+            else:
+                lo, hi = emn, emx
+            if not (lo <= n <= hi):
                 messagebox.showerror(
                     "Error",
                     f"Balota {i + 1}: {n} fuera del rango "
-                    f"[{lot['min_number']}, {lot['max_number']}].",
+                    f"[{lo}, {hi}].",
                 )
                 return
             numbers.append(n)
@@ -382,7 +400,7 @@ class TabChecker:
             t.configure(state="disabled")
             return
 
-        pos    = self.state.lottery["positions"]
+        pos    = self.state.lottery["positions"] + (self.state.lottery.get("extra_positions", 0) or 0)
         header = "  N°    Fecha        " + " ".join(f"  B{i+1:>2}" for i in range(pos)) + "\n"
         t.insert("end", header, "header")
         t.insert("end", "  " + "—" * (len(header) - 3) + "\n", "header")

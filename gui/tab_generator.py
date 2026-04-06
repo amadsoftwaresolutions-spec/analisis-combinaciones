@@ -67,11 +67,13 @@ class TabGenerator:
             height=38, command=self._train_model,
         ).pack(padx=16, pady=(8, 4))
 
-        ctk.CTkButton(
+        self._btn_reduction = ctk.CTkButton(
             left, text="📉  Calcular Reducción",
             fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+            text_color=CLR_TEXT,
             height=34, command=self._calculate_reduction,
-        ).pack(padx=16, pady=4)
+        )
+        self._btn_reduction.pack(padx=16, pady=4)
 
         # Separador
 
@@ -130,9 +132,10 @@ class TabGenerator:
                      font=ctk.CTkFont(size=8),
                      text_color=CLR_TEXT_DIM).pack(pady=2)
 
-        ctk.CTkLabel(left, text="Combinaciones a generar:",
+        self._lbl_combos = ctk.CTkLabel(left, text="Combinaciones a generar:",
                      font=ctk.CTkFont(size=11),
-                     text_color=CLR_TEXT_DIM).pack(anchor="w", padx=20)
+                     text_color=CLR_TEXT)
+        self._lbl_combos.pack(anchor="w", padx=20)
 
         spin_row = ctk.CTkFrame(left, fg_color="transparent")
         spin_row.pack(padx=16, pady=4, fill="x")
@@ -258,9 +261,11 @@ class TabGenerator:
         ctk.CTkButton(btn_hist, text="Cargar", width=70, height=26,
                       fg_color=CLR_ACCENT, hover_color="#16a34a",
                       command=self._load_selected_session).pack(side="left", padx=2)
-        ctk.CTkButton(btn_hist, text="Renombrar", width=90, height=26,
+        self._btn_rename = ctk.CTkButton(btn_hist, text="Renombrar", width=90, height=26,
                       fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
-                      command=self._rename_session).pack(side="left", padx=2)
+                      text_color=CLR_TEXT,
+                      command=self._rename_session)
+        self._btn_rename.pack(side="left", padx=2)
         ctk.CTkButton(btn_hist, text="× Borrar", width=70, height=26,
                       fg_color=CLR_BTN_DANGER, hover_color="#dc2626",
                       command=self._delete_session).pack(side="left", padx=2)
@@ -694,6 +699,12 @@ class TabGenerator:
                                        foreground=pal["TEXT"])
         self._sess_tree.tag_configure("row_odd",  background=pal["CARD2"],
                                        foreground=pal["TEXT"])
+        # Force text color on secondary buttons/labels for light theme
+        txt = pal["TEXT"]
+        card2 = pal["CARD2"]
+        self._btn_reduction.configure(text_color=txt, fg_color=card2)
+        self._btn_rename.configure(text_color=txt, fg_color=card2)
+        self._lbl_combos.configure(text_color=txt)
 
     def refresh(self):
         # Resetear cuando cambia la lotería
