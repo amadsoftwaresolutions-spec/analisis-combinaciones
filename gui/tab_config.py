@@ -248,6 +248,7 @@ class TabConfig:
         clr_card   = pal["CARD"]
         clr_card2  = pal["CARD2"]
         clr_border = pal["BORDER"]
+        clr_text   = pal["TEXT"]
         clr_text_dim = pal["TEXT_DIM"]
 
         for w in self._listbox_frame.winfo_children():
@@ -273,6 +274,7 @@ class TabConfig:
                      f"{lot['min_number']}–{lot['max_number']}",
                 font=ctk.CTkFont(family="Segoe UI", size=12),
                 fg_color="transparent",
+                text_color=clr_text,
                 hover_color=clr_card2,
                 anchor="w",
                 command=lambda l=lot: self._load_lottery(l),

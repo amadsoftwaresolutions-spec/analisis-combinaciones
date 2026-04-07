@@ -371,7 +371,12 @@ class TabChecker:
         # Usar la reducción calculada por el Generador IA (compartida via AppState)
         if self.state.ai_reduction:
             flat = sorted(self.state.ai_reduction)
-            self._ai_var.set("  ".join(str(n) for n in flat))
+            parts = "  ".join(str(n) for n in flat)
+            # Agregar reducción de adicionales si existe
+            if self.state.ai_extra_reduction:
+                extra_flat = sorted(self.state.ai_extra_reduction)
+                parts += "   |   Adicionales: " + "  ".join(str(n) for n in extra_flat)
+            self._ai_var.set(parts)
         else:
             self._ai_var.set("Entrena el modelo en Generador IA y calcula la reducción primero.")
 
@@ -434,7 +439,11 @@ class TabChecker:
         # Solo actualizar la reducción IA sin reconstruir la grilla
         if self.state.ai_reduction:
             flat = sorted(self.state.ai_reduction)
-            self._ai_var.set("  ".join(str(n) for n in flat))
+            parts = "  ".join(str(n) for n in flat)
+            if self.state.ai_extra_reduction:
+                extra_flat = sorted(self.state.ai_extra_reduction)
+                parts += "   |   Adicionales: " + "  ".join(str(n) for n in extra_flat)
+            self._ai_var.set(parts)
 
     def retheme(self):
         """Re-apply visual styles for current theme without resetting data."""
@@ -451,7 +460,11 @@ class TabChecker:
         # Mostrar reducción compartida desde Generador IA si existe
         if self.state.ai_reduction:
             flat = sorted(self.state.ai_reduction)
-            self._ai_var.set("  ".join(str(n) for n in flat))
+            parts = "  ".join(str(n) for n in flat)
+            if self.state.ai_extra_reduction:
+                extra_flat = sorted(self.state.ai_extra_reduction)
+                parts += "   |   Adicionales: " + "  ".join(str(n) for n in extra_flat)
+            self._ai_var.set(parts)
         else:
             self._ai_var.set("")
 

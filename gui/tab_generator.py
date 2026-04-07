@@ -25,8 +25,10 @@ class TabGenerator:
         self.parent = parent
         self.state = state
         self._predictor: LotteryPredictor | None = None
+        self._extra_predictor: LotteryPredictor | None = None
         self._reduced_universe: list[list[int]] | None = None
         self._global_pool_ranked: list[int] | None = None
+        self._extra_pool_ranked: list[int] | None = None
         self._generated: list[list[int]] = []
         self._build()
 
@@ -330,6 +332,14 @@ class TabGenerator:
         self._predictor = LotteryPredictor(
             lot["positions"], lot["min_number"], lot["max_number"])
 
+        # Predictor independiente para números adicionales
+        extra_pos = lot.get("extra_positions", 0) or 0
+        if extra_pos > 0:
+            self._extra_predictor = LotteryPredictor(
+                extra_pos, lot.get("extra_min", 1), lot.get("extra_max", 10))
+        else:
+            self._extra_predictor = None
+
         self._model_info.configure(text="Entrenando modelo…",
                                     text_color="#f9ca24")
         self._progress_bar.set(0)
@@ -343,10 +353,24 @@ class TabGenerator:
 
         def train_thread():
             try:
-                success = self._predictor.train(all_draws, progress_callback=progress_cb)
+                main_pos = lot["positions"]
+                # Entrenar modelo principal (solo columnas principales)
+                main_draws = [d[:main_pos] for d in all_draws]
+                success = self._predictor.train(main_draws, progress_callback=progress_cb)
+
+                # Entrenar modelo adicional si aplica
+                extra_success = False
+                if self._extra_predictor and extra_pos > 0:
+                    extra_draws = [d[main_pos:main_pos + extra_pos]
+                                   for d in all_draws
+                                   if len(d) > main_pos]
+                    if len(extra_draws) >= MIN_DRAWS_FOR_ML:
+                        extra_success = self._extra_predictor.train(extra_draws)
+
                 if success:
+                    extra_msg = "  (+adicionales)" if extra_success else ""
                     self._model_info.configure(
-                        text=f"✅  Modelo entrenado  ({len(all_draws)} sorteos)",
+                        text=f"✅  Modelo entrenado  ({len(all_draws)} sorteos){extra_msg}",
                         text_color="#22c55e")
                     self._progress_lbl.configure(text="Entrenamiento completado.")
                 else:
@@ -381,12 +405,15 @@ class TabGenerator:
         pos = lot["positions"]
         mn, mx = lot["min_number"], lot["max_number"]
 
-        stat_scores = score_numbers(draws, pos, mn, mx)
+        # Separar columnas principales de las extras
+        main_draws = [d[:pos] for d in draws]
+
+        stat_scores = score_numbers(main_draws, pos, mn, mx)
 
         ml_scores_raw = None
         if self._predictor and self._predictor.is_trained:
-            ml_scores_raw = self._predictor.predict_scores(
-                draws[-20:] if len(draws) >= 20 else draws)
+            recent_main = main_draws[-20:] if len(main_draws) >= 20 else main_draws
+            ml_scores_raw = self._predictor.predict_scores(recent_main)
 
         # ── Score global: sumar puntuaciones de todas las posiciones ──
         full_range = range(mn, mx + 1)
@@ -436,6 +463,55 @@ class TabGenerator:
                 f"Mejores números:      {pool_size} de {pool_n}"
             )
         )
+
+        # ── Reducción independiente de números adicionales ──
+        extra_pos = lot.get("extra_positions", 0) or 0
+        self._extra_pool_ranked = None
+        self.state.ai_extra_reduction = None
+
+        if extra_pos > 0:
+            emn = lot.get("extra_min", 1) or 1
+            emx = lot.get("extra_max", 10) or 10
+
+            extra_draws = [d[pos:pos + extra_pos]
+                           for d in draws if len(d) > pos]
+            if extra_draws:
+                extra_stat = score_numbers(extra_draws, extra_pos, emn, emx)
+
+                extra_ml = None
+                if (self._extra_predictor
+                        and self._extra_predictor.is_trained):
+                    recent_extra = (extra_draws[-20:]
+                                    if len(extra_draws) >= 20
+                                    else extra_draws)
+                    extra_ml = self._extra_predictor.predict_scores(
+                        recent_extra)
+
+                extra_range = range(emn, emx + 1)
+                extra_global: dict[int, float] = {n: 0.0 for n in extra_range}
+                for ps in extra_stat:
+                    for n, s in ps.items():
+                        extra_global[n] += s
+
+                if extra_ml:
+                    eml_global: dict[int, float] = {n: 0.0 for n in extra_range}
+                    for ps in extra_ml:
+                        for n, s in ps.items():
+                            eml_global[n] += s
+                    emax_stat = max(extra_global.values()) or 1
+                    emax_ml = max(eml_global.values()) or 1
+                    for n in extra_range:
+                        extra_global[n] = (0.5 * extra_global[n] / emax_stat
+                                           + 0.5 * eml_global[n] / emax_ml)
+
+                epool_n = emx - emn + 1
+                ekeep_n = max(extra_pos, round(epool_n * 0.5))
+                esorted = sorted(extra_global.items(),
+                                 key=lambda x: x[1], reverse=True)
+                extra_pool = [n for n, _ in esorted[:ekeep_n]]
+                self._extra_pool_ranked = sorted(extra_pool)
+                self.state.ai_extra_reduction = self._extra_pool_ranked[:]
+
         self._render_universe(self._reduced_universe)
 
     def _generate(self):
@@ -450,10 +526,13 @@ class TabGenerator:
         draws = self._get_draws() or []
         lot = self.state.lottery
         count = int(self._count_var.get())
+        main_pos = lot["positions"]
 
+        # Generar combinaciones principales (sólo columnas principales)
+        main_draws = [d[:main_pos] for d in draws]
         self._generated = generate_combinations(
-            self._reduced_universe, draws,
-            count, lot["positions"],
+            self._reduced_universe, main_draws,
+            count, main_pos,
             lot["min_number"], lot["max_number"],
             composition=self._composition_var.get(),
             excl_all_consecutive=self._filt_consec_all.get(),
@@ -470,6 +549,15 @@ class TabGenerator:
                 "No se pudieron generar combinaciones con los filtros actuales.\n"
                 "Intenta con un universo reducido más grande o menos sorteos históricos.")
             return
+
+        # Generar números adicionales independientes si hay reducción extra
+        extra_pos = lot.get("extra_positions", 0) or 0
+        extra_pool = self._extra_pool_ranked
+        if extra_pos > 0 and extra_pool and len(extra_pool) >= extra_pos:
+            import random as _rnd
+            for i, combo in enumerate(self._generated):
+                extras = sorted(_rnd.sample(extra_pool, extra_pos))
+                self._generated[i] = combo + extras
 
         self._generated.sort()
 
@@ -512,6 +600,33 @@ class TabGenerator:
             t.insert("end", "\n")
         t.insert("end", "\n")
 
+        # ── Reducción de números adicionales ──
+        extra_pool = getattr(self, "_extra_pool_ranked", None)
+        if extra_pool:
+            lot = self.state.lottery
+            epos = lot.get("extra_positions", 0) or 0
+            emn = lot.get("extra_min", 1) or 1
+            emx = lot.get("extra_max", 10) or 10
+            epool_total = emx - emn + 1
+
+            t.insert("end",
+                      "══ REDUCCIÓN DE ADICIONALES ══\n",
+                      "section_title")
+            t.insert("end",
+                      f"  Top {len(extra_pool)} de {epool_total} números adicionales "
+                      f"({epos} {'balota' if epos == 1 else 'balotas'}, "
+                      f"rango {emn}–{emx}):\n\n",
+                      "header")
+            ROW_E = 15
+            for i in range(0, len(extra_pool), ROW_E):
+                chunk = extra_pool[i:i + ROW_E]
+                t.insert("end", "  ")
+                for n in chunk:
+                    tag = "prime" if is_prime(n) else "composite"
+                    t.insert("end", f"{n:>3} ", tag)
+                t.insert("end", "\n")
+            t.insert("end", "\n")
+
         # ── Combinaciones generadas ──
         if combos:
             comp_label = {"mixta": "Mixta", "solo_primos": "Solo primos",
@@ -534,11 +649,20 @@ class TabGenerator:
             for idx, combo in enumerate(combos):
                 tag = "row_even" if idx % 2 == 0 else "row_odd"
                 t.insert("end", f"  {idx + 1:>3}.  ", tag)
-                for n in combo:
+                main_n = (self.state.lottery["positions"]
+                          if self.state.has_lottery else len(combo))
+                main_part = combo[:main_n]
+                extra_part = combo[main_n:]
+                for n in main_part:
                     num_tag = "prime" if is_prime(n) else "composite"
                     t.insert("end", f"{n:>3} ", (num_tag, tag))
+                if extra_part:
+                    t.insert("end", " |", tag)
+                    for n in extra_part:
+                        num_tag = "prime" if is_prime(n) else "composite"
+                        t.insert("end", f"{n:>3} ", (num_tag, tag))
                 # Nota si hay consecutivos
-                sorted_c = sorted(combo)
+                sorted_c = sorted(main_part)
                 consec = any(sorted_c[i + 1] - sorted_c[i] == 1
                              for i in range(len(sorted_c) - 1))
                 if consec:
@@ -635,6 +759,7 @@ class TabGenerator:
 
         self._reduced_universe = sess["universe"]
         self._global_pool_ranked = None   # sesión guardada no tiene orden de score
+        self._extra_pool_ranked = None
         self._generated = sess["combinations"]
         # Compartir reducción con checker (unión de todas las posiciones, ordenada)
         pool_set: set[int] = set()
@@ -709,8 +834,10 @@ class TabGenerator:
     def refresh(self):
         # Resetear cuando cambia la lotería
         self._predictor = None
+        self._extra_predictor = None
         self._reduced_universe = None
         self._global_pool_ranked = None
+        self._extra_pool_ranked = None
         self._generated = []
         self._model_info.configure(text="Modelo: no entrenado",
                                     text_color=CLR_TEXT_DIM)

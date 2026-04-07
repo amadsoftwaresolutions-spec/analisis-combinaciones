@@ -72,6 +72,7 @@ class AppState:
         self.lottery_id: int | None = None
         self.lottery: dict | None = None
         self.ai_reduction: list[int] | None = None
+        self.ai_extra_reduction: list[int] | None = None
         self._callbacks: list = []
 
     def set_lottery(self, lottery_id: int | None):
@@ -82,6 +83,7 @@ class AppState:
             self.lottery_id = lottery_id
             self.lottery = self.db.get_lottery(lottery_id)
         self.ai_reduction = None
+        self.ai_extra_reduction = None
         for cb in self._callbacks:
             cb()
 
