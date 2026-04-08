@@ -17,7 +17,7 @@ MIN_NUMBER_VALUE = 0
 MAX_NUMBER_VALUE = 99
 
 # Configuración de análisis
-RECENT_DRAWS_ANALYSIS = 30   # Últimos sorteos para análisis IA
+RECENT_DRAWS_ANALYSIS = 20   # Últimos sorteos para análisis IA / reducción
 HISTORY_DISPLAY = 50         # Sorteos a mostrar en historial
 MIN_SIMILAR_MATCHES    = 4    # Mínimo de coincidencias por posición para "similar"
 REDUCTION_TARGET_PCT  = 0.50  # Fracción mínima del universo en la reducción IA (generador)
@@ -29,6 +29,7 @@ MAX_GENERATE = 50
 REDUCTION_MAX_PCT = 50       # Máx 50% del universo total
 
 # ML / TensorFlow
+ML_TRAIN_DRAWS = 1000        # Máximo de sorteos recientes para entrenamiento
 MIN_DRAWS_FOR_ML = 15        # Mínimo de sorteos para entrenar el modelo
 SEQUENCE_LEN = 10            # Ventana de sorteos pasados como input del modelo
 ML_EPOCHS = 80               # Épocas de entrenamiento

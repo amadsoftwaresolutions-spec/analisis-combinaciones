@@ -76,15 +76,10 @@ class TabChecker:
         ).pack(side="left", padx=(0, 8))
 
         ctk.CTkButton(
-            btn_row, text="⚡  Calcular IA",
-            fg_color=CLR_FRAME, hover_color=CLR_CARD2,
-            height=36, width=130,
-            command=self._calc_ai,
-        ).pack(side="left", padx=(0, 8))
-
-        ctk.CTkButton(
             btn_row, text="✖  Limpiar",
             fg_color=CLR_FRAME, hover_color=CLR_CARD2,
+            text_color=CLR_TEXT,
+            border_width=1, border_color=CLR_BORDER,
             height=36, width=90,
             command=self._clear,
         ).pack(side="left", padx=(0, 20))
@@ -364,21 +359,6 @@ class TabChecker:
         similares = find_similar(numbers, draws, MIN_SIMILAR_MATCHES)
         self._count_lbl.configure(text=f"{len(similares)} resultado(s)")
         self._render_similar(numbers, similares)
-
-    def _calc_ai(self):
-        if not self.state.has_lottery:
-            return
-        # Usar la reducción calculada por el Generador IA (compartida via AppState)
-        if self.state.ai_reduction:
-            flat = sorted(self.state.ai_reduction)
-            parts = "  ".join(str(n) for n in flat)
-            # Agregar reducción de adicionales si existe
-            if self.state.ai_extra_reduction:
-                extra_flat = sorted(self.state.ai_extra_reduction)
-                parts += "   |   Adicionales: " + "  ".join(str(n) for n in extra_flat)
-            self._ai_var.set(parts)
-        else:
-            self._ai_var.set("Entrena el modelo en Generador IA y calcula la reducción primero.")
 
     def _clear(self):
         for e in self._entries:

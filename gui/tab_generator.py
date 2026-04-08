@@ -12,7 +12,7 @@ import customtkinter as ctk
 from config import (CLR_BG, CLR_CARD, CLR_CARD2, CLR_FRAME, CLR_FRAME2, CLR_TEXT, CLR_TEXT_DIM,
                     CLR_PRIME, CLR_COMPOSITE, CLR_BTN_PRIMARY, CLR_ACCENT, CLR_TEXT,
                     CLR_BTN_DANGER, MIN_GENERATE, MAX_GENERATE,
-                    RECENT_DRAWS_ANALYSIS, MIN_DRAWS_FOR_ML,
+                    RECENT_DRAWS_ANALYSIS, MIN_DRAWS_FOR_ML, ML_TRAIN_DRAWS,
                     get_active_palette)
 from utils.math_utils import (is_prime, total_combinations,
                                format_large_number)
@@ -311,10 +311,13 @@ class TabGenerator:
         return all_draws[-RECENT_DRAWS_ANALYSIS:]
 
     def _get_all_draws(self):
-        """Todos los sorteos históricos para entrenamiento ML."""
+        """Últimos ML_TRAIN_DRAWS sorteos para entrenamiento ML (o todos si hay menos)."""
         if not self.state.has_lottery:
             return None
-        return self.state.db.get_all_numbers(self.state.lottery_id)
+        all_draws = self.state.db.get_all_numbers(self.state.lottery_id)
+        if not all_draws:
+            return None
+        return all_draws[-ML_TRAIN_DRAWS:]
 
     def _train_model(self):
         if not self.state.has_lottery:
