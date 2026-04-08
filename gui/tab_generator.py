@@ -77,6 +77,21 @@ class TabGenerator:
         )
         self._btn_reduction.pack(padx=16, pady=4)
 
+        red_row = ctk.CTkFrame(left, fg_color="transparent")
+        red_row.pack(padx=16, pady=(0, 4), fill="x")
+        ctk.CTkButton(
+            red_row, text="📉 Reduc. 30",
+            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+            text_color=CLR_TEXT,
+            height=30, command=lambda: self._calculate_reduction(30),
+        ).pack(side="left", expand=True, fill="x", padx=(0, 3))
+        ctk.CTkButton(
+            red_row, text="📉 Reduc. 50",
+            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+            text_color=CLR_TEXT,
+            height=30, command=lambda: self._calculate_reduction(50),
+        ).pack(side="left", expand=True, fill="x", padx=(3, 0))
+
         # Separador
 
         # ── Módulo 2: Tipo de combinación ────────────────────────────────
@@ -310,6 +325,15 @@ class TabGenerator:
             return None
         return all_draws[-RECENT_DRAWS_ANALYSIS:]
 
+    def _get_draws_n(self, n: int):
+        """Últimos n sorteos para análisis / reducción con n configurable."""
+        if not self.state.has_lottery:
+            return None
+        all_draws = self.state.db.get_all_numbers(self.state.lottery_id)
+        if not all_draws:
+            return None
+        return all_draws[-n:]
+
     def _get_all_draws(self):
         """Últimos ML_TRAIN_DRAWS sorteos para entrenamiento ML (o todos si hay menos)."""
         if not self.state.has_lottery:
@@ -389,7 +413,7 @@ class TabGenerator:
 
         threading.Thread(target=train_thread, daemon=True).start()
 
-    def _calculate_reduction(self):
+    def _calculate_reduction(self, n_draws: int | None = None):
         if not self.state.has_lottery:
             messagebox.showwarning("Sin lotería", "Selecciona una lotería primero.")
             return
@@ -399,7 +423,8 @@ class TabGenerator:
                 "Primero entrena el modelo IA con '⚡ Entrenar Modelo IA'\n"
                 "antes de calcular la reducción.")
             return
-        draws = self._get_draws()
+        draws = self._get_draws_n(n_draws) if n_draws is not None else self._get_draws()
+        self._n_analysis_draws = len(draws) if draws else 0
         if not draws:
             messagebox.showwarning("Sin datos",
                                     "Ingresa sorteos históricos primero.")
@@ -459,6 +484,7 @@ class TabGenerator:
 
         self._stats_lbl.configure(
             text=(
+                f"Sorteos análisis:     {self._n_analysis_draws}\n"
                 f"Universo original:    {format_large_number(total_u)}\n"
                 f"Universo reducido:    {format_large_number(reduced_c)}\n"
                 f"Reducción:            {pct:.1f}%  "
@@ -718,7 +744,7 @@ class TabGenerator:
         if not name or not name.strip():
             return
 
-        draws_used = len(self._get_draws() or [])
+        draws_used = getattr(self, "_n_analysis_draws", None) or len(self._get_draws() or [])
         self.state.db.save_training_session(
             self.state.lottery_id,
             name.strip(),
