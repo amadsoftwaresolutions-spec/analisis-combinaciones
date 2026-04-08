@@ -7,6 +7,7 @@ import tkinter as tk
 from tkinter import messagebox
 import customtkinter as ctk
 
+from PIL import Image
 from config import (APP_NAME, APP_VERSION,
                     CLR_BG, CLR_CARD, CLR_CARD2, CLR_INPUT, CLR_BORDER,
                     CLR_ACCENT, CLR_ACCENT2, CLR_ACCENT_DIM,
@@ -138,23 +139,28 @@ class LotteryAnalyzerApp:
         bar.pack(fill="x", side="top")
         bar.pack_propagate(False)
 
-        # ── Left: logo mark + app name ──
+        # ── Left: logo + app name ──
         logo_area = tk.Frame(bar, bg=HDR)
         logo_area.pack(side="left", padx=(20, 0))
 
-        # Square logo mark with "L" glyph
-        mark_cv = tk.Canvas(logo_area, width=32, height=32,
-                            bg=HDR, highlightthickness=0)
-        mark_cv.pack(side="left", padx=(0, 12))
-        mark_cv.create_rectangle(0, 0, 32, 32, fill=CLR_ACCENT,
-                                 outline="", tags="sq")
-        mark_cv.create_text(16, 16, text="L",
-                            font=("Segoe UI", 15, "bold"),
-                            fill="#0d0d10", tags="lt")
-        # Subtle animated corner accent
-        self._mark_cv = mark_cv
-        self._mark_phase = 0
-        self._animate_mark()
+        # PRONOSMART logo PNG
+        try:
+            _pil = Image.open("pronosmart-logo_300ppp.png").convert("RGBA")
+            _pil = _pil.resize((44, 44), Image.LANCZOS)
+            # Blend white background with topbar colour
+            _px = _pil.load()
+            hdr_r, hdr_g, hdr_b = 8, 8, 12
+            for _y in range(_pil.height):
+                for _x in range(_pil.width):
+                    r, g, b, a = _px[_x, _y]
+                    if r > 220 and g > 220 and b > 220:
+                        _px[_x, _y] = (hdr_r, hdr_g, hdr_b, 255)
+            self._logo_img = ctk.CTkImage(light_image=_pil, dark_image=_pil,
+                                          size=(44, 44))
+            ctk.CTkLabel(logo_area, image=self._logo_img, text="",
+                         fg_color=HDR).pack(side="left", padx=(0, 10))
+        except Exception:
+            pass
 
         title_col = tk.Frame(logo_area, bg=HDR)
         title_col.pack(side="left")
@@ -221,14 +227,6 @@ class LotteryAnalyzerApp:
         # Bottom separator
         self._topbar_sep = tk.Frame(self.root, bg=CLR_BORDER, height=1)
         self._topbar_sep.pack(fill="x", side="top")
-
-    def _animate_mark(self):
-        """Subtle pulsing glow on the logo square."""
-        colors = [CLR_ACCENT, CLR_ACCENT2, CLR_ACCENT, "#16a34a", "#15803d",
-                  "#16a34a", CLR_ACCENT, CLR_ACCENT2]
-        self._mark_cv.itemconfig("sq", fill=colors[self._mark_phase % len(colors)])
-        self._mark_phase += 1
-        self.root.after(600, self._animate_mark)
 
     # ── Navigation strip ─────────────────────────────────────────────────────
     def _build_navstrip(self):
