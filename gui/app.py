@@ -168,7 +168,7 @@ class LotteryAnalyzerApp:
                  font=("Segoe UI", 13, "bold"),
                  fg=CLR_TEXT, bg=HDR).pack(anchor="w")
         tk.Label(title_col,
-                 text="Análisis Inteligente · TensorFlow",
+                 text="Lottery Analytics AI",
                  font=("Segoe UI", 8),
                  fg=CLR_TEXT_DIM, bg=HDR).pack(anchor="w")
 

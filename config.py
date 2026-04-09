@@ -3,7 +3,7 @@ Configuración global — Nova Design System
 """
 import os
 
-APP_NAME = "Lottery Analytics AI"
+APP_NAME = "PRONOSMART"
 APP_VERSION = "1.0.0"
 
 # Ruta de la base de datos
@@ -17,7 +17,7 @@ MIN_NUMBER_VALUE = 0
 MAX_NUMBER_VALUE = 99
 
 # Configuración de análisis
-RECENT_DRAWS_ANALYSIS = 20   # Últimos sorteos para análisis IA / reducción
+RECENT_DRAWS_ANALYSIS = 33   # Últimos sorteos para análisis IA / reducción
 HISTORY_DISPLAY = 50         # Sorteos a mostrar en historial
 MIN_SIMILAR_MATCHES    = 4    # Mínimo de coincidencias por posición para "similar"
 REDUCTION_TARGET_PCT  = 0.50  # Fracción mínima del universo en la reducción IA (generador)
@@ -26,7 +26,7 @@ REDUCTION_DISPLAY_PCT = 0.50  # Fracción del universo que muestra la reducción
 # Generación de combinaciones
 MIN_GENERATE = 1
 MAX_GENERATE = 50
-REDUCTION_MAX_PCT = 50       # Máx 50% del universo total
+REDUCTION_MAX_PCT = 60       # Máx 60% del universo total
 
 # ML / TensorFlow
 ML_TRAIN_DRAWS = 1000        # Máximo de sorteos recientes para entrenamiento

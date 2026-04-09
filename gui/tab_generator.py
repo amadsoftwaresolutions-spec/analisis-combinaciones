@@ -84,13 +84,37 @@ class TabGenerator:
             fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
             text_color=CLR_TEXT,
             height=30, command=lambda: self._calculate_reduction(30),
-        ).pack(side="left", expand=True, fill="x", padx=(0, 3))
+        ).pack(side="left", expand=True, fill="x", padx=(0, 2))
         ctk.CTkButton(
             red_row, text="📉 Reduc. 50",
             fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
             text_color=CLR_TEXT,
             height=30, command=lambda: self._calculate_reduction(50),
-        ).pack(side="left", expand=True, fill="x", padx=(3, 0))
+        ).pack(side="left", expand=True, fill="x", padx=(2, 2))
+        ctk.CTkButton(
+            red_row, text="📉 Reduc. 60%",
+            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+            text_color=CLR_TEXT,
+            height=30, command=lambda: self._calculate_reduction(keep_pct=60),
+        ).pack(side="left", expand=True, fill="x", padx=(2, 0))
+
+        ctk.CTkLabel(left, text="Reducción del universo:",
+                     font=ctk.CTkFont(size=11, weight="bold"),
+                     text_color=CLR_TEXT).pack(anchor="w", padx=20, pady=(6, 2))
+        pct_row = ctk.CTkFrame(left, fg_color="transparent")
+        pct_row.pack(padx=16, pady=(0, 4), fill="x")
+        ctk.CTkButton(
+            pct_row, text="🌐 Universo 50%",
+            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+            text_color=CLR_TEXT,
+            height=30, command=lambda: self._calculate_reduction(keep_pct=50),
+        ).pack(side="left", expand=True, fill="x", padx=(0, 2))
+        ctk.CTkButton(
+            pct_row, text="🌐 Universo 60%",
+            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+            text_color=CLR_TEXT,
+            height=30, command=lambda: self._calculate_reduction(keep_pct=60),
+        ).pack(side="left", expand=True, fill="x", padx=(2, 0))
 
         # Separador
 
@@ -413,7 +437,7 @@ class TabGenerator:
 
         threading.Thread(target=train_thread, daemon=True).start()
 
-    def _calculate_reduction(self, n_draws: int | None = None):
+    def _calculate_reduction(self, n_draws: int | None = None, keep_pct: int = 50):
         if not self.state.has_lottery:
             messagebox.showwarning("Sin lotería", "Selecciona una lotería primero.")
             return
@@ -440,7 +464,7 @@ class TabGenerator:
 
         ml_scores_raw = None
         if self._predictor and self._predictor.is_trained:
-            recent_main = main_draws[-20:] if len(main_draws) >= 20 else main_draws
+            recent_main = main_draws[-RECENT_DRAWS_ANALYSIS:] if len(main_draws) >= RECENT_DRAWS_ANALYSIS else main_draws
             ml_scores_raw = self._predictor.predict_scores(recent_main)
 
         # ── Score global: sumar puntuaciones de todas las posiciones ──
@@ -461,9 +485,9 @@ class TabGenerator:
                 global_score[n] = (0.5 * global_score[n] / max_stat
                                    + 0.5 * ml_global[n] / max_ml)
 
-        # Top 50% del universo ordenado por score global
+        # Top keep_pct% del universo ordenado por score global
         pool_n = mx - mn + 1
-        keep_n = max(pos, round(pool_n * 0.5))
+        keep_n = max(pos, round(pool_n * keep_pct / 100))
         sorted_by_score = sorted(global_score.items(),
                                  key=lambda x: x[1], reverse=True)
         global_pool = [n for n, _ in sorted_by_score[:keep_n]]
@@ -488,7 +512,7 @@ class TabGenerator:
                 f"Universo original:    {format_large_number(total_u)}\n"
                 f"Universo reducido:    {format_large_number(reduced_c)}\n"
                 f"Reducción:            {pct:.1f}%  "
-                f"({'✅ ≤50%' if pct <= 50 else '⚠️ >50%'})\n"
+                f"({'✅ ≤' + str(keep_pct) + '%' if pct <= keep_pct else '⚠️ >' + str(keep_pct) + '%'})\n"
                 f"Mejores números:      {pool_size} de {pool_n}"
             )
         )
@@ -534,7 +558,7 @@ class TabGenerator:
                                            + 0.5 * eml_global[n] / emax_ml)
 
                 epool_n = emx - emn + 1
-                ekeep_n = max(extra_pos, round(epool_n * 0.5))
+                ekeep_n = max(extra_pos, round(epool_n * keep_pct / 100))
                 esorted = sorted(extra_global.items(),
                                  key=lambda x: x[1], reverse=True)
                 extra_pool = [n for n, _ in esorted[:ekeep_n]]
