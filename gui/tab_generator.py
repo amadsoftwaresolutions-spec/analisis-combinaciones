@@ -77,45 +77,6 @@ class TabGenerator:
         )
         self._btn_reduction.pack(padx=16, pady=4)
 
-        red_row = ctk.CTkFrame(left, fg_color="transparent")
-        red_row.pack(padx=16, pady=(0, 4), fill="x")
-        ctk.CTkButton(
-            red_row, text="📉 Reduc. 30",
-            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
-            text_color=CLR_TEXT,
-            height=30, command=lambda: self._calculate_reduction(30),
-        ).pack(side="left", expand=True, fill="x", padx=(0, 2))
-        ctk.CTkButton(
-            red_row, text="📉 Reduc. 50",
-            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
-            text_color=CLR_TEXT,
-            height=30, command=lambda: self._calculate_reduction(50),
-        ).pack(side="left", expand=True, fill="x", padx=(2, 2))
-        ctk.CTkButton(
-            red_row, text="📉 Reduc. 60%",
-            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
-            text_color=CLR_TEXT,
-            height=30, command=lambda: self._calculate_reduction(keep_pct=60),
-        ).pack(side="left", expand=True, fill="x", padx=(2, 0))
-
-        ctk.CTkLabel(left, text="Reducción del universo:",
-                     font=ctk.CTkFont(size=11, weight="bold"),
-                     text_color=CLR_TEXT).pack(anchor="w", padx=20, pady=(6, 2))
-        pct_row = ctk.CTkFrame(left, fg_color="transparent")
-        pct_row.pack(padx=16, pady=(0, 4), fill="x")
-        ctk.CTkButton(
-            pct_row, text="🌐 Universo 50%",
-            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
-            text_color=CLR_TEXT,
-            height=30, command=lambda: self._calculate_reduction(keep_pct=50),
-        ).pack(side="left", expand=True, fill="x", padx=(0, 2))
-        ctk.CTkButton(
-            pct_row, text="🌐 Universo 60%",
-            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
-            text_color=CLR_TEXT,
-            height=30, command=lambda: self._calculate_reduction(keep_pct=60),
-        ).pack(side="left", expand=True, fill="x", padx=(2, 0))
-
         # Separador
 
         # ── Módulo 2: Tipo de combinación ────────────────────────────────
