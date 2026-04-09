@@ -82,13 +82,16 @@ class TabGenerator:
             fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
             text_color=CLR_TEXT,
             height=30, command=lambda: self._calculate_reduction(keep_pct=60),
-        ).pack(side="left", expand=True, fill="x", padx=(2, 2))
+        ).pack(side="left", expand=True, fill="x", padx=(2, 0))
+
+        pct_row2 = ctk.CTkFrame(left, fg_color="transparent")
+        pct_row2.pack(padx=16, pady=(0, 4), fill="x")
         ctk.CTkButton(
-            pct_row, text="🌐 Universo 40%",
+            pct_row2, text="🌐 Universo 40%",
             fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
             text_color=CLR_TEXT,
             height=30, command=lambda: self._calculate_reduction(keep_pct=40),
-        ).pack(side="left", expand=True, fill="x", padx=(2, 0))
+        ).pack(side="left", expand=True, fill="x")
 
         # Separador
 
