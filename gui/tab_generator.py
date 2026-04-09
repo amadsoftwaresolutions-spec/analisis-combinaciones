@@ -81,6 +81,12 @@ class TabGenerator:
             pct_row, text="🌐 Universo 60%",
             fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
             text_color=CLR_TEXT,
+            height=30, command=lambda: self._calculate_reduction(keep_pct=60),
+        ).pack(side="left", expand=True, fill="x", padx=(2, 2))
+        ctk.CTkButton(
+            pct_row, text="🌐 Universo 40%",
+            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
+            text_color=CLR_TEXT,
             height=30, command=lambda: self._calculate_reduction(keep_pct=40),
         ).pack(side="left", expand=True, fill="x", padx=(2, 0))
 
