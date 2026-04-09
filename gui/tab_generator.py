@@ -69,14 +69,6 @@ class TabGenerator:
             height=38, command=self._train_model,
         ).pack(padx=16, pady=(8, 4))
 
-        self._btn_reduction = ctk.CTkButton(
-            left, text="📉  Calcular Reducción",
-            fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
-            text_color=CLR_TEXT,
-            height=34, command=self._calculate_reduction,
-        )
-        self._btn_reduction.pack(padx=16, pady=4)
-
         pct_row = ctk.CTkFrame(left, fg_color="transparent")
         pct_row.pack(padx=16, pady=(0, 4), fill="x")
         ctk.CTkButton(
@@ -89,7 +81,7 @@ class TabGenerator:
             pct_row, text="🌐 Universo 60%",
             fg_color=CLR_FRAME2, hover_color=CLR_CARD2,
             text_color=CLR_TEXT,
-            height=30, command=lambda: self._calculate_reduction(keep_pct=60),
+            height=30, command=lambda: self._calculate_reduction(keep_pct=40),
         ).pack(side="left", expand=True, fill="x", padx=(2, 0))
 
         # Separador
@@ -856,7 +848,6 @@ class TabGenerator:
         # Force text color on secondary buttons/labels for light theme
         txt = pal["TEXT"]
         card2 = pal["CARD2"]
-        self._btn_reduction.configure(text_color=txt, fg_color=card2)
         self._btn_rename.configure(text_color=txt, fg_color=card2)
         self._lbl_combos.configure(text_color=txt)
 
