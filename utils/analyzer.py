@@ -192,6 +192,18 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
     """
     recent = draws[-recent_n:] if len(draws) > recent_n else draws
 
+    # ── Detectar si la lotería es de posiciones independientes ───────────
+    # La fórmula de estadístico de orden sólo es válida para loterías
+    # ordenadas (balotas extraídas SIN reposición y ordenadas de menor a
+    # mayor dentro del mismo sorteo).  Si los sorteos no están ordenados
+    # internamente, o si hay números repetidos dentro de un mismo sorteo,
+    # se trata de una lotería de dígitos independientes → usar punto medio
+    # simple (min+max)/2 para todas las posiciones.
+    sample = recent[:min(30, len(recent))]
+    _has_repeats    = any(len(set(d)) < len(d) for d in sample)
+    _is_sorted_draws = all(d == sorted(d) for d in sample) if sample else True
+    _use_simple_midpoint = _has_repeats or not _is_sorted_draws
+
     result = []
     for pos in range(positions):
         # ── Rango para esta posición ─────────────────────────────────
@@ -204,23 +216,25 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
         # ── Punto medio posicional ───────────────────────────────────
         # Para posiciones con rango propio (adicionales) se usa el punto
         # medio global de su rango.  Para posiciones principales en
-        # universos grandes se usa el estadístico de orden.
+        # universos grandes se usa el estadístico de orden, EXCEPTO cuando
+        # se detecta que la lotería es de posiciones independientes.
         midpoint = None
         if pos_min is not None and pos_max is not None:
-            # Determinar cuántas posiciones comparten este mismo rango
-            # para calcular correctamente el estadístico de orden.
-            if ranges and pos < len(ranges):
-                same_range = [i for i in range(len(ranges)) if ranges[i] == (pos_min, pos_max)]
-                rank_in_group = same_range.index(pos) + 1
-                group_size = len(same_range)
-            else:
-                rank_in_group = pos + 1
-                group_size = positions
-
             universe = pos_max - pos_min + 1
-            if universe <= 5:
+            if universe <= 5 or _use_simple_midpoint:
+                # Loterías con universo pequeño o de dígitos independientes:
+                # punto medio simple igual para todas las posiciones.
                 midpoint = (pos_min + pos_max) / 2
             else:
+                # Lotería ordenada (balotas sin reposición, ordenadas):
+                # usar estadístico de orden posicional.
+                if ranges and pos < len(ranges):
+                    same_range = [i for i in range(len(ranges)) if ranges[i] == (pos_min, pos_max)]
+                    rank_in_group = same_range.index(pos) + 1
+                    group_size = len(same_range)
+                else:
+                    rank_in_group = pos + 1
+                    group_size = positions
                 midpoint = pos_min + (pos_max - pos_min) * rank_in_group / (group_size + 1)
 
         # ── Estadísticas de transiciones (informativas) ──────────────
@@ -247,10 +261,10 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
         if midpoint is not None and last_val is not None:
             if last_val < midpoint:
                 pred = "MAYOR ▲"
-                strength = (midpoint - last_val) / (midpoint - min_num) if midpoint > min_num else 0.0
+                strength = (midpoint - last_val) / (midpoint - pos_min) if midpoint > pos_min else 0.0
             elif last_val > midpoint:
                 pred = "MENOR ▼"
-                strength = (last_val - midpoint) / (max_num - midpoint) if max_num > midpoint else 0.0
+                strength = (last_val - midpoint) / (pos_max - midpoint) if pos_max > midpoint else 0.0
             else:
                 # Exactamente en el punto medio → usar transiciones como desempate
                 if raw_up > raw_down:
