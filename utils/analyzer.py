@@ -266,25 +266,23 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
                 pred = "MENOR ▼"
                 strength = (last_val - midpoint) / (pos_max - midpoint) if pos_max > midpoint else 0.0
             else:
-                # Exactamente en el punto medio → usar transiciones como desempate
-                if raw_up > raw_down:
-                    pred = "MAYOR ▲"
-                elif raw_down > raw_up:
+                # Exactamente en el punto medio → usar transiciones como desempate.
+                # Si las transiciones también están empatadas (o sin datos),
+                # se asigna MAYOR por defecto ya que desde el centro la
+                # tendencia natural es hacia un valor mayor.
+                if raw_down > raw_up:
                     pred = "MENOR ▼"
                 else:
-                    pred = "INDETERMINADO"
+                    pred = "MAYOR ▲"
                 strength = 0.0
         elif total_raw > 0:
-            # Fallback sin rango: usar transiciones
-            if raw_up > raw_down:
-                pred = "MAYOR ▲"
-                strength = (raw_up - raw_down) / total_raw
-            elif raw_down > raw_up:
+            # Fallback sin rango: usar transiciones; empate → MAYOR por defecto
+            if raw_down > raw_up:
                 pred = "MENOR ▼"
                 strength = (raw_down - raw_up) / total_raw
             else:
-                pred = "INDETERMINADO"
-                strength = 0.0
+                pred = "MAYOR ▲"
+                strength = (raw_up - raw_down) / total_raw
         else:
             pred = "SIN DATOS"
             strength = 0.0
