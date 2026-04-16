@@ -266,14 +266,25 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
                 pred = "MENOR ▼"
                 strength = (last_val - midpoint) / (pos_max - midpoint) if pos_max > midpoint else 0.0
             else:
-                # Exactamente en el punto medio → usar transiciones como desempate.
-                # Si las transiciones también están empatadas (o sin datos),
-                # se asigna MAYOR por defecto ya que desde el centro la
-                # tendencia natural es hacia un valor mayor.
-                if raw_down > raw_up:
-                    pred = "MENOR ▼"
-                else:
-                    pred = "MAYOR ▲"
+                # Exactamente en el punto medio.
+                # Para universos pequeños (≤10): usar el valor anterior en
+                # esta misma posición como indicador de tendencia.
+                #   - Si el anterior estaba por debajo del punto medio → MAYOR
+                #     (venía de abajo, aún tiene recorrido hacia arriba)
+                #   - Si el anterior estaba por encima del punto medio → MENOR
+                #     (venía de arriba, aún tiene recorrido hacia abajo)
+                # Si no hay valor anterior, o cae también en el punto medio,
+                # usar el balance de transiciones; si siguen empatadas → MAYOR.
+                pred = None
+                universe = pos_max - pos_min + 1
+                if universe <= 10 and len(recent) >= 2:
+                    prev_val = recent[-2][pos] if pos < len(recent[-2]) else None
+                    if prev_val is not None and prev_val < midpoint:
+                        pred = "MAYOR ▲"
+                    elif prev_val is not None and prev_val > midpoint:
+                        pred = "MENOR ▼"
+                if pred is None:
+                    pred = "MENOR ▼" if raw_down > raw_up else "MAYOR ▲"
                 strength = 0.0
         elif total_raw > 0:
             # Fallback sin rango: usar transiciones; empate → MAYOR por defecto
