@@ -183,7 +183,8 @@ class TabChecker:
         ranges = [(mn, mx)] * main_n + [(emn, emx)] * extra_n if extra_n else None
 
         hl        = predict_higher_lower(draws_num, n, min_num=mn, max_num=mx,
-                                          ranges=ranges) if draws_num else []
+                                          ranges=ranges,
+                                          main_positions=main_n) if draws_num else []
 
         p = get_active_palette()          # colours follow the active theme
         cell_bg  = p["GRID"]

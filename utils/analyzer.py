@@ -163,7 +163,8 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
                           recent_n: int = RECENT_DRAWS_ANALYSIS,
                           min_num: int | None = None,
                           max_num: int | None = None,
-                          ranges: list[tuple[int, int]] | None = None) -> list[dict]:
+                          ranges: list[tuple[int, int]] | None = None,
+                          main_positions: int | None = None) -> list[dict]:
     """
     Para cada posición predice si el siguiente número será MAYOR o MENOR
     usando el método de **Equilibrio de Números Posicional**: comparación
@@ -185,24 +186,82 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
     es fundamental para loterías con balotas adicionales cuyo universo es
     más pequeño (ej. Euromillones: 5 principales 1-50 + 2 estrellas 1-12).
 
+    ``main_positions`` indica cuántas de las primeras posiciones forman el
+    grupo principal ordenado.  Las restantes son posiciones extras
+    (independientes).  Esto permite separar correctamente el cálculo de
+    orden estadístico incluso cuando extras comparten el mismo rango que
+    las principales (ej. Powerball: 5 de 1-69 + 1 de 1-26).
+
     Retorna lista de dicts por posición:
       { 'last': int, 'up_pct': float, 'down_pct': float, 'prediction': str,
         'up_count': int, 'down_count': int, 'equal_count': int,
         '_strength': float }
     """
     recent = draws[-recent_n:] if len(draws) > recent_n else draws
-
-    # ── Detectar si la lotería es de posiciones independientes ───────────
-    # La fórmula de estadístico de orden sólo es válida para loterías
-    # ordenadas (balotas extraídas SIN reposición y ordenadas de menor a
-    # mayor dentro del mismo sorteo).  Si los sorteos no están ordenados
-    # internamente, o si hay números repetidos dentro de un mismo sorteo,
-    # se trata de una lotería de dígitos independientes → usar punto medio
-    # simple (min+max)/2 para todas las posiciones.
     sample = recent[:min(30, len(recent))]
-    _has_repeats    = any(len(set(d)) < len(d) for d in sample)
-    _is_sorted_draws = all(d == sorted(d) for d in sample) if sample else True
-    _use_simple_midpoint = _has_repeats or not _is_sorted_draws
+
+    # ── Construir grupos de posiciones ──────────────────────────────
+    # Cada grupo es un conjunto de posiciones que se tratan como un
+    # sorteo ordenado independiente.  Se verifica por separado si cada
+    # grupo está ordenado y sin repetidos.
+    #
+    # Prioridad para agrupar:
+    #   1. main_positions  → [0..main-1] y [main..end]  (cada sub-grupo
+    #      extra puede tener su propio rango)
+    #   2. ranges          → posiciones con el mismo (min,max)
+    #   3. Sin nada        → todas las posiciones juntas
+    # -------------------------------------------------------------------
+
+    if main_positions is not None and main_positions < positions:
+        # Separar principales de extras explícitamente
+        pos_groups: list[list[int]] = [list(range(main_positions))]
+        # Extras: agrupar por rango si tienen rangos distintos entre sí
+        extra_indices = list(range(main_positions, positions))
+        if ranges:
+            from collections import OrderedDict
+            extra_grps: dict[tuple[int, int], list[int]] = OrderedDict()
+            for idx in extra_indices:
+                extra_grps.setdefault(ranges[idx], []).append(idx)
+            pos_groups.extend(extra_grps.values())
+        else:
+            pos_groups.append(extra_indices)
+    elif ranges:
+        # Agrupar por rango (mantener orden de aparición)
+        from collections import OrderedDict
+        grp_map: dict[tuple[int, int], list[int]] = OrderedDict()
+        for idx, rng in enumerate(ranges):
+            grp_map.setdefault(rng, []).append(idx)
+        pos_groups = list(grp_map.values())
+    else:
+        pos_groups = [list(range(positions))]
+
+    # ── Detectar por grupo si es ordenado o independiente ────────────
+    # group_ordered[group_index] = True si el grupo es un sorteo ordenado
+    group_ordered: dict[int, bool] = {}
+    for gi, grp_indices in enumerate(pos_groups):
+        if len(grp_indices) <= 1:
+            # Grupo de 1 sola posición: trivialmente "ordenado"
+            group_ordered[gi] = True
+            continue
+        has_repeats = False
+        is_sorted   = True
+        for d in sample:
+            vals = [d[p] for p in grp_indices if p < len(d)]
+            if len(vals) < 2:
+                continue
+            if len(set(vals)) < len(vals):
+                has_repeats = True
+            if vals != sorted(vals):
+                is_sorted = False
+            if has_repeats or not is_sorted:
+                break
+        group_ordered[gi] = is_sorted and not has_repeats
+
+    # Mapa posición → (índice de grupo, ordenado?)
+    pos_to_group: dict[int, int] = {}
+    for gi, grp_indices in enumerate(pos_groups):
+        for p in grp_indices:
+            pos_to_group[p] = gi
 
     result = []
     for pos in range(positions):
@@ -213,28 +272,24 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
             pos_min = min_num
             pos_max = max_num
 
+        # ── Grupo y estado de orden de esta posición ─────────────────
+        gi = pos_to_group.get(pos, 0)
+        grp_indices = pos_groups[gi] if gi < len(pos_groups) else [pos]
+        is_ordered = group_ordered.get(gi, False)
+
         # ── Punto medio posicional ───────────────────────────────────
-        # Para posiciones con rango propio (adicionales) se usa el punto
-        # medio global de su rango.  Para posiciones principales en
-        # universos grandes se usa el estadístico de orden, EXCEPTO cuando
-        # se detecta que la lotería es de posiciones independientes.
         midpoint = None
         if pos_min is not None and pos_max is not None:
             universe = pos_max - pos_min + 1
-            if universe <= 5 or _use_simple_midpoint:
-                # Loterías con universo pequeño o de dígitos independientes:
-                # punto medio simple igual para todas las posiciones.
+            if universe <= 5 or not is_ordered:
+                # Universo pequeño o grupo de posiciones independientes:
+                # punto medio simple.
                 midpoint = (pos_min + pos_max) / 2
             else:
-                # Lotería ordenada (balotas sin reposición, ordenadas):
-                # usar estadístico de orden posicional.
-                if ranges and pos < len(ranges):
-                    same_range = [i for i in range(len(ranges)) if ranges[i] == (pos_min, pos_max)]
-                    rank_in_group = same_range.index(pos) + 1
-                    group_size = len(same_range)
-                else:
-                    rank_in_group = pos + 1
-                    group_size = positions
+                # Grupo ordenado → usar estadístico de orden posicional.
+                # El rango se calcula DENTRO del grupo (no globalmente).
+                rank_in_group = grp_indices.index(pos) + 1
+                group_size = len(grp_indices)
                 midpoint = pos_min + (pos_max - pos_min) * rank_in_group / (group_size + 1)
 
         # ── Estadísticas de transiciones (informativas) ──────────────
@@ -258,7 +313,42 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
         # ── Predicción por Equilibrio Posicional ────────────────────
         # Compara el último valor contra el valor esperado de esta
         # posición específica (no el punto medio global).
-        if midpoint is not None and last_val is not None:
+
+        # ── Regla especial para loterías de dígitos 0-9 ─────────────
+        # Rango exacto 0-9: reglas fijas de umbral.
+        #   0-4 → MAYOR,  6-9 → MENOR
+        #   5   → depende del dígito anterior en esta posición.
+        if (pos_min == 0 and pos_max == 9 and last_val is not None):
+            if last_val <= 4:
+                pred = "MAYOR ▲"
+                strength = (4 - last_val) / 4 if last_val < 4 else 0.0
+            elif last_val >= 6:
+                pred = "MENOR ▼"
+                strength = (last_val - 6) / 3 if last_val > 6 else 0.0
+            else:
+                # last_val == 5 → mirar el valor anterior en esta posición
+                pred = None
+                if len(recent) >= 2:
+                    prev_val = recent[-2][pos] if pos < len(recent[-2]) else None
+                    if prev_val is not None and prev_val <= 4:
+                        pred = "MAYOR ▲"
+                    elif prev_val is not None and prev_val >= 6:
+                        pred = "MENOR ▼"
+                    # prev_val == 5 → seguir buscando hacia atrás
+                    if pred is None:
+                        for ri in range(len(recent) - 3, -1, -1):
+                            pv = recent[ri][pos] if pos < len(recent[ri]) else None
+                            if pv is not None and pv <= 4:
+                                pred = "MAYOR ▲"
+                                break
+                            elif pv is not None and pv >= 6:
+                                pred = "MENOR ▼"
+                                break
+                if pred is None:
+                    pred = "MAYOR ▲"  # default si no hay historial
+                strength = 0.0
+
+        elif midpoint is not None and last_val is not None:
             if last_val < midpoint:
                 pred = "MAYOR ▲"
                 strength = (midpoint - last_val) / (midpoint - pos_min) if midpoint > pos_min else 0.0
@@ -266,25 +356,8 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
                 pred = "MENOR ▼"
                 strength = (last_val - midpoint) / (pos_max - midpoint) if pos_max > midpoint else 0.0
             else:
-                # Exactamente en el punto medio.
-                # Para universos pequeños (≤10): usar el valor anterior en
-                # esta misma posición como indicador de tendencia.
-                #   - Si el anterior estaba por debajo del punto medio → MAYOR
-                #     (venía de abajo, aún tiene recorrido hacia arriba)
-                #   - Si el anterior estaba por encima del punto medio → MENOR
-                #     (venía de arriba, aún tiene recorrido hacia abajo)
-                # Si no hay valor anterior, o cae también en el punto medio,
-                # usar el balance de transiciones; si siguen empatadas → MAYOR.
-                pred = None
-                universe = pos_max - pos_min + 1
-                if universe <= 10 and len(recent) >= 2:
-                    prev_val = recent[-2][pos] if pos < len(recent[-2]) else None
-                    if prev_val is not None and prev_val < midpoint:
-                        pred = "MAYOR ▲"
-                    elif prev_val is not None and prev_val > midpoint:
-                        pred = "MENOR ▼"
-                if pred is None:
-                    pred = "MENOR ▼" if raw_down > raw_up else "MAYOR ▲"
+                # Exactamente en el punto medio → usar transiciones.
+                pred = "MENOR ▼" if raw_down > raw_up else "MAYOR ▲"
                 strength = 0.0
         elif total_raw > 0:
             # Fallback sin rango: usar transiciones; empate → MAYOR por defecto

@@ -297,7 +297,8 @@ class TabAnalysis:
 
         hl = predict_higher_lower(draws_raw, lot["positions"],
                                     min_num=lot["min_number"],
-                                    max_num=lot["max_number"])
+                                    max_num=lot["max_number"],
+                                    main_positions=lot["positions"])
 
         wrapper = ctk.CTkFrame(frame, fg_color="transparent")
         wrapper.pack(fill="x", padx=16, pady=8)
