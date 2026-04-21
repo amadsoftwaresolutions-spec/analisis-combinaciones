@@ -356,8 +356,24 @@ def predict_higher_lower(draws: list[list[int]], positions: int,
                 pred = "MENOR ▼"
                 strength = (last_val - midpoint) / (pos_max - midpoint) if pos_max > midpoint else 0.0
             else:
-                # Exactamente en el punto medio → usar transiciones.
-                pred = "MENOR ▼" if raw_down > raw_up else "MAYOR ▲"
+                # Exactamente en el punto medio.
+                # Buscar hacia atrás el primer valor de esta posición que
+                # NO sea el punto medio y usarlo como referencia:
+                #   - anterior < midpoint → el número venía desde abajo → MAYOR
+                #   - anterior > midpoint → el número venía desde arriba → MENOR
+                # Si todos los valores anteriores también están en el punto
+                # medio, o no hay historial, usar el balance de transiciones.
+                pred = None
+                for ri in range(len(recent) - 2, -1, -1):
+                    pv = recent[ri][pos] if pos < len(recent[ri]) else None
+                    if pv is not None and pv < midpoint:
+                        pred = "MAYOR ▲"
+                        break
+                    elif pv is not None and pv > midpoint:
+                        pred = "MENOR ▼"
+                        break
+                if pred is None:
+                    pred = "MENOR ▼" if raw_down > raw_up else "MAYOR ▲"
                 strength = 0.0
         elif total_raw > 0:
             # Fallback sin rango: usar transiciones; empate → MAYOR por defecto
